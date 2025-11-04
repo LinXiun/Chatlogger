@@ -1,9 +1,9 @@
 --// ChatLogger.lua
---// Single-script Chat Logger with Scroll-to-Bottom button
---// Drop this into StarterPlayerScripts
+--// One-script Chat Logger (Draggable, Scroll Button, Dropdown Filter)
+--// Place inside StarterPlayerScripts
 
 --------------------------------------------------
--- Shared setup
+-- Setup
 --------------------------------------------------
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -41,7 +41,7 @@ if not RunService:IsClient() then
 end
 
 --------------------------------------------------
--- Client GUI + Logger
+-- Client logic
 --------------------------------------------------
 local LocalPlayer = Players.LocalPlayer
 
@@ -68,7 +68,7 @@ local function formatTime(epoch)
 end
 
 --------------------------------------------------
--- Build GUI
+-- GUI Setup
 --------------------------------------------------
 local gui = New("ScreenGui", {
 	Name = "ChatLoggerGUI",
@@ -103,7 +103,7 @@ New("TextLabel", {
 	TextXAlignment = Enum.TextXAlignment.Left
 })
 
--- Reusable button function
+-- Helper: button creator
 local function CreateButton(label, offset)
 	local btn = New("TextButton", {
 		Text = label,
@@ -124,7 +124,7 @@ clearBtn.Parent = header
 local exportBtn = CreateButton("Export", 160)
 exportBtn.Parent = header
 
--- Dropdown
+-- Dropdown filter
 local dropdownBtn = New("TextButton", {
 	Parent = header,
 	Text = "Filter: All",
@@ -148,7 +148,7 @@ local dropdownList = New("Frame", {
 New("UICorner", {Parent = dropdownList, CornerRadius = UDim.new(0, 10)})
 New("UIListLayout", {Parent = dropdownList, Padding = UDim.new(0, 4)})
 
--- Chat area
+-- Scroll area
 local scroll = New("ScrollingFrame", {
 	Parent = main,
 	Position = UDim2.new(0.02, 0, 0.12, 0),
@@ -215,12 +215,12 @@ local function addMessage(entry)
 	line.Text = line.Text
 end
 
--- Scroll button behavior
+-- Scroll button
 scrollBtn.MouseButton1Click:Connect(function()
 	scroll.CanvasPosition = Vector2.new(0, math.max(0, scroll.CanvasSize.Y.Offset))
 end)
 
--- Dropdown rebuild
+-- Dropdown logic
 local function rebuildDropdown()
 	for _, c in ipairs(dropdownList:GetChildren()) do
 		if c:IsA("TextButton") then c:Destroy() end
@@ -281,14 +281,14 @@ dropdownBtn.MouseButton1Click:Connect(toggleDropdown)
 Players.PlayerAdded:Connect(function() if dropdownOpen then rebuildDropdown() end end)
 Players.PlayerRemoving:Connect(function() if dropdownOpen then rebuildDropdown() end end)
 
--- Clear logs
+-- Clear
 clearBtn.MouseButton1Click:Connect(function()
 	logs = {}
 	scroll:ClearAllChildren()
 	list.Parent = scroll
 end)
 
--- Export logs
+-- Export
 exportBtn.MouseButton1Click:Connect(function()
 	local modal = New("Frame", {
 		Parent = gui,
@@ -328,7 +328,35 @@ exportBtn.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------
--- Receive messages
+-- Dragging Logic
+--------------------------------------------------
+local UIS = game:GetService("UserInputService")
+local dragging = false
+local dragStart, startPos
+
+header.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = main.Position
+	end
+end)
+
+header.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+		local delta = input.Position - dragStart
+		main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+--------------------------------------------------
+-- Chat listener
 --------------------------------------------------
 chatEvent.OnClientEvent:Connect(function(data)
 	addMessage(data)
