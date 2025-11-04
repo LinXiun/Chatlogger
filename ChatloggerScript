@@ -61,6 +61,7 @@ playerList.CanvasSize = UDim2.new(0, 0, 0, 0)
 playerList.ZIndex = 6
 playerList.Parent = dropFrame
 
+-- UIListLayout for player buttons
 local listLayout = Instance.new("UIListLayout")
 listLayout.Padding = UDim.new(0, 4)
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -123,21 +124,34 @@ end
 -- Selected players
 local selectedPlayers = {}
 
--- Populate dropdown
+-- Populate dropdown (fixed version)
 local function updatePlayerList()
-	playerList:ClearAllChildren()
+	-- Remove existing buttons only
+	for _, child in ipairs(playerList:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+
 	for _, plr in ipairs(Players:GetPlayers()) do
 		local b = Instance.new("TextButton")
-		b.Size = UDim2.new(1, -10, 0, 25)
+		b.Size = UDim2.new(1, -4, 0, 28)
 		b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 		b.TextColor3 = Color3.new(1, 1, 1)
 		b.Text = plr.DisplayName
 		b.Font = Enum.Font.SourceSans
 		b.TextSize = 16
+		b.TextXAlignment = Enum.TextXAlignment.Left
 		b.ZIndex = 6
 		b.Parent = playerList
 		Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
 
+		-- Highlight if selected
+		if selectedPlayers[plr.UserId] then
+			b.BackgroundColor3 = Color3.fromRGB(100, 180, 100)
+		end
+
+		-- Toggle selection
 		b.MouseButton1Click:Connect(function()
 			if selectedPlayers[plr.UserId] then
 				selectedPlayers[plr.UserId] = nil
@@ -148,6 +162,9 @@ local function updatePlayerList()
 			end
 		end)
 	end
+
+	-- Update canvas size
+	playerList.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
 end
 
 updatePlayerList()
@@ -164,7 +181,7 @@ local function toggleDropdown()
 	else
 		dropFrame.Visible = true
 		dropOpen = true
-		TweenService:Create(dropFrame, TweenInfo.new(0.25), {Size = UDim2.new(0, 160, 0, 150)}):Play()
+		TweenService:Create(dropFrame, TweenInfo.new(0.25), {Size = UDim2.new(0, 160, 0, 200)}):Play()
 	end
 end
 
