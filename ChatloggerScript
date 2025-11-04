@@ -1,0 +1,189 @@
+--[[ 
+    Chat Logger GUI (Draggable + Resizable)
+    Place this LocalScript in StarterPlayerScripts.
+--]]
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ChatLoggerGUI"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.Position = UDim2.new(0.25, 0, 0.25, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = mainFrame
+
+-- Title Bar
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 28)
+titleBar.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+titleBar.Parent = mainFrame
+
+local titleText = Instance.new("TextLabel")
+titleText.Size = UDim2.new(1, -30, 1, 0)
+titleText.Position = UDim2.new(0, 8, 0, 0)
+titleText.BackgroundTransparency = 1
+titleText.Text = "Chat Logger"
+titleText.Font = Enum.Font.SourceSansBold
+titleText.TextColor3 = Color3.new(1, 1, 1)
+titleText.TextSize = 20
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+titleText.Parent = titleBar
+
+-- Resize handle (bottom-right corner)
+local resizeHandle = Instance.new("Frame")
+resizeHandle.Size = UDim2.new(0, 20, 0, 20)
+resizeHandle.Position = UDim2.new(1, -20, 1, -20)
+resizeHandle.AnchorPoint = Vector2.new(0, 0)
+resizeHandle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+resizeHandle.BorderSizePixel = 0
+resizeHandle.Parent = mainFrame
+
+local resizeCorner = Instance.new("UICorner")
+resizeCorner.CornerRadius = UDim.new(0, 4)
+resizeCorner.Parent = resizeHandle
+
+-- Player List
+local playerList = Instance.new("ScrollingFrame")
+playerList.Size = UDim2.new(0.25, 0, 1, -28)
+playerList.Position = UDim2.new(0, 0, 0, 28)
+playerList.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+playerList.ScrollBarThickness = 6
+playerList.BorderSizePixel = 0
+playerList.CanvasSize = UDim2.new(0, 0, 0, 0)
+playerList.Parent = mainFrame
+
+local playerListLayout = Instance.new("UIListLayout")
+playerListLayout.Padding = UDim.new(0, 4)
+playerListLayout.Parent = playerList
+
+-- Chat Frame
+local chatFrame = Instance.new("ScrollingFrame")
+chatFrame.Size = UDim2.new(0.75, -8, 1, -32)
+chatFrame.Position = UDim2.new(0.25, 8, 0, 30)
+chatFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+chatFrame.ScrollBarThickness = 8
+chatFrame.BorderSizePixel = 0
+chatFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+chatFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+chatFrame.Parent = mainFrame
+
+local chatLayout = Instance.new("UIListLayout")
+chatLayout.Padding = UDim.new(0, 2)
+chatLayout.SortOrder = Enum.SortOrder.LayoutOrder
+chatLayout.Parent = chatFrame
+
+-- Update Player List
+local function refreshPlayerList()
+	playerList:ClearAllChildren()
+	playerListLayout.Parent = playerList
+
+	for _, plr in pairs(Players:GetPlayers()) do
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(1, -6, 0, 24)
+		button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		button.TextColor3 = Color3.new(1, 1, 1)
+		button.Text = plr.DisplayName
+		button.Font = Enum.Font.SourceSansBold
+		button.TextScaled = true
+		button.Parent = playerList
+
+		local bCorner = Instance.new("UICorner")
+		bCorner.CornerRadius = UDim.new(0, 6)
+		bCorner.Parent = button
+
+		button.MouseButton1Click:Connect(function()
+			for _, msg in pairs(chatFrame:GetChildren()) do
+				if msg:IsA("TextLabel") then
+					msg.Visible = (msg:GetAttribute("Player") == plr.Name)
+				end
+			end
+		end)
+	end
+
+	playerList.CanvasSize = UDim2.new(0, 0, 0, playerListLayout.AbsoluteContentSize.Y)
+end
+
+Players.PlayerAdded:Connect(refreshPlayerList)
+Players.PlayerRemoving:Connect(refreshPlayerList)
+refreshPlayerList()
+
+-- Add messages
+local function addMessage(plr, message)
+	local msgLabel = Instance.new("TextLabel")
+	msgLabel.Size = UDim2.new(1, -8, 0, 0)
+	msgLabel.AutomaticSize = Enum.AutomaticSize.Y
+	msgLabel.BackgroundTransparency = 1
+	msgLabel.TextWrapped = true
+	msgLabel.TextColor3 = Color3.new(1, 1, 1)
+	msgLabel.Font = Enum.Font.SourceSans
+	msgLabel.TextSize = 18
+	msgLabel.Text = string.format("[ %s ] %s", plr.DisplayName, message)
+	msgLabel.LayoutOrder = #chatFrame:GetChildren()
+	msgLabel:SetAttribute("Player", plr.Name)
+	msgLabel.Parent = chatFrame
+end
+
+-- Connect chat events
+local chatEvents = ReplicatedStorage:WaitForChild("DefaultChatSystemChatEvents", 10)
+if chatEvents then
+	local onMessage = chatEvents:WaitForChild("OnMessageDoneFiltering", 10)
+	if onMessage then
+		onMessage.OnClientEvent:Connect(function(data)
+			local plr = Players:FindFirstChild(data.FromSpeaker)
+			if plr then
+				addMessage(plr, data.Message)
+			end
+		end)
+	end
+end
+
+-- Auto-scroll only when at bottom
+chatLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	local atBottom = chatFrame.CanvasPosition.Y >= chatFrame.AbsoluteCanvasSize.Y - chatFrame.AbsoluteWindowSize.Y - 10
+	chatFrame.CanvasSize = UDim2.new(0, 0, 0, chatLayout.AbsoluteContentSize.Y)
+	if atBottom then
+		chatFrame.CanvasPosition = Vector2.new(0, chatFrame.AbsoluteCanvasSize.Y)
+	end
+end)
+
+-- Resize Logic
+local UserInputService = game:GetService("UserInputService")
+local draggingResize = false
+local startPos, startSize, startInputPos
+
+resizeHandle.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingResize = true
+		startPos = mainFrame.Position
+		startSize = mainFrame.Size
+		startInputPos = input.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				draggingResize = false
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if draggingResize and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - startInputPos
+		mainFrame.Size = UDim2.new(startSize.X.Scale, startSize.X.Offset + delta.X, startSize.Y.Scale, startSize.Y.Offset + delta.Y)
+	end
+end)
