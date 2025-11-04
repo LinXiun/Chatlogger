@@ -1,4 +1,4 @@
---// Fast Chat Logger GUI (LocalScript)
+--// Chat Logger GUI (LocalScript)
 --// Place this in StarterPlayerScripts
 
 -- Services
@@ -7,170 +7,199 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local localPlayer = Players.LocalPlayer
-local playerGui = localPlayer:WaitForChild("PlayerGui")
 
---=== Create GUI Hierarchy Fast ===--
-local gui = Instance.new("ScreenGui")
-gui.Name = "ChatLoggerGui"
-gui.ResetOnSpawn = false
-gui.Parent = playerGui
+--// Create GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ChatLoggerGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
-local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 500, 0, 350)
-main.Position = UDim2.new(0.5, -250, 0.5, -175)
-main.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-main.BorderSizePixel = 0
-main.Parent = gui
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 500, 0, 350)
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
 
-local playerList = Instance.new("ScrollingFrame")
-playerList.Size = UDim2.new(0, 150, 1, 0)
-playerList.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-playerList.BorderSizePixel = 0
-playerList.ScrollBarThickness = 6
-playerList.Parent = main
-local listLayout = Instance.new("UIListLayout")
-listLayout.Padding = UDim.new(0, 4)
-listLayout.Parent = playerList
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = MainFrame
 
-local chatFrame = Instance.new("ScrollingFrame")
-chatFrame.Size = UDim2.new(1, -160, 1, -10)
-chatFrame.Position = UDim2.new(0, 155, 0, 5)
-chatFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-chatFrame.BorderSizePixel = 0
-chatFrame.ScrollBarThickness = 8
-chatFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-chatFrame.Parent = main
-local chatLayout = Instance.new("UIListLayout")
-chatLayout.Padding = UDim.new(0, 4)
-chatLayout.SortOrder = Enum.SortOrder.LayoutOrder
-chatLayout.Parent = chatFrame
+-- Player list
+local PlayerList = Instance.new("ScrollingFrame")
+PlayerList.Size = UDim2.new(0, 150, 1, 0)
+PlayerList.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+PlayerList.BorderSizePixel = 0
+PlayerList.ScrollBarThickness = 6
+PlayerList.CanvasSize = UDim2.new(0, 0, 0, 0)
+PlayerList.Parent = MainFrame
+
+local PlayerListLayout = Instance.new("UIListLayout")
+PlayerListLayout.Padding = UDim.new(0, 4)
+PlayerListLayout.Parent = PlayerList
+
+-- Chat frame
+local ChatFrame = Instance.new("ScrollingFrame")
+ChatFrame.Size = UDim2.new(1, -160, 1, -10)
+ChatFrame.Position = UDim2.new(0, 155, 0, 5)
+ChatFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ChatFrame.BorderSizePixel = 0
+ChatFrame.ScrollBarThickness = 8
+ChatFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ChatFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ChatFrame.Parent = MainFrame
+
+local ChatLayout = Instance.new("UIListLayout")
+ChatLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ChatLayout.Padding = UDim.new(0, 4)
+ChatLayout.Parent = ChatFrame
 
 -- Scroll-to-bottom button
-local scrollBtn = Instance.new("TextButton")
-scrollBtn.Size = UDim2.new(0, 140, 0, 32)
-scrollBtn.Position = UDim2.new(1, -160, 1, -45)
-scrollBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
-scrollBtn.TextColor3 = Color3.new(1, 1, 1)
-scrollBtn.Font = Enum.Font.SourceSansBold
-scrollBtn.TextSize = 16
-scrollBtn.Text = "Scroll to Bottom ↓"
-scrollBtn.Visible = false
-scrollBtn.BackgroundTransparency = 1
-scrollBtn.TextTransparency = 1
-scrollBtn.Parent = main
-Instance.new("UICorner", scrollBtn).CornerRadius = UDim.new(0, 8)
+local ScrollDownButton = Instance.new("TextButton")
+ScrollDownButton.Size = UDim2.new(0, 140, 0, 32)
+ScrollDownButton.Position = UDim2.new(1, -160, 1, -45)
+ScrollDownButton.AnchorPoint = Vector2.new(0, 0)
+ScrollDownButton.Text = "Scroll to Bottom ↓"
+ScrollDownButton.TextSize = 16
+ScrollDownButton.Font = Enum.Font.SourceSansBold
+ScrollDownButton.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+ScrollDownButton.TextColor3 = Color3.new(1, 1, 1)
+ScrollDownButton.Visible = false
+ScrollDownButton.Parent = MainFrame
+ScrollDownButton.BackgroundTransparency = 1
+ScrollDownButton.TextTransparency = 1
 
---=== Functions ===--
-local playerColors = {}
-local function getPlayerColor(plr)
-	local color = playerColors[plr.UserId]
-	if not color then
-		color = Color3.fromHSV(math.random(), 0.6, 1)
-		playerColors[plr.UserId] = color
-	end
-	return color
-end
+local ScrollCorner = Instance.new("UICorner")
+ScrollCorner.CornerRadius = UDim.new(0, 8)
+ScrollCorner.Parent = ScrollDownButton
 
-local function fadeButton(show)
-	local target = {
-		BackgroundTransparency = show and 0 or 1,
-		TextTransparency = show and 0 or 1,
-	}
-	local tween = TweenService:Create(scrollBtn, TweenInfo.new(0.2), target)
-	if show and not scrollBtn.Visible then
-		scrollBtn.Visible = true
+-- Fade animation helper
+local function fadeButton(visible)
+	local goal = {}
+	if visible then
+		goal.BackgroundTransparency = 0
+		goal.TextTransparency = 0
+	else
+		goal.BackgroundTransparency = 1
+		goal.TextTransparency = 1
 	end
+
+	local tween = TweenService:Create(ScrollDownButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), goal)
 	tween:Play()
-	tween.Completed:Once(function()
-		if not show then
-			scrollBtn.Visible = false
-		end
-	end)
-end
 
--- Update player list (fast version)
-local function updatePlayerList()
-	playerList:ClearAllChildren()
-	for _, plr in ipairs(Players:GetPlayers()) do
-		local b = Instance.new("TextButton")
-		b.Size = UDim2.new(1, -10, 0, 25)
-		b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-		b.TextColor3 = Color3.new(1, 1, 1)
-		b.Text = plr.DisplayName
-		b.Font = Enum.Font.SourceSansBold
-		b.TextSize = 16
-		b.AutoButtonColor = false
-		Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
-		b.Parent = playerList
+	if visible then
+		ScrollDownButton.Visible = true
+		tween.Completed:Connect(function()
+			ScrollDownButton.Active = true
+		end)
+	else
+		ScrollDownButton.Active = false
+		tween.Completed:Connect(function()
+			if not visible then
+				ScrollDownButton.Visible = false
+			end
+		end)
 	end
 end
+
+-- Update player list
+local function updatePlayerList()
+	PlayerList:ClearAllChildren()
+	for _, plr in ipairs(Players:GetPlayers()) do
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(1, -10, 0, 25)
+		button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		button.TextColor3 = Color3.new(1, 1, 1)
+		button.Text = plr.DisplayName
+		button.Font = Enum.Font.SourceSansBold
+		button.TextSize = 16
+		button.Parent = PlayerList
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 8)
+		corner.Parent = button
+	end
+end
+
 updatePlayerList()
 Players.PlayerAdded:Connect(updatePlayerList)
 Players.PlayerRemoving:Connect(updatePlayerList)
 
--- Chat template (prebuilt for reuse)
-local function createChatLabel()
-	local t = Instance.new("TextLabel")
-	t.BackgroundTransparency = 1
-	t.Size = UDim2.new(1, -10, 0, 20)
-	t.Font = Enum.Font.SourceSans
-	t.TextXAlignment = Enum.TextXAlignment.Left
-	t.TextSize = 16
-	t.TextWrapped = true
-	t.RichText = true
-	t.TextColor3 = Color3.new(1, 1, 1)
-	return t
+-- Color memory per player
+local playerColors = {}
+local function getPlayerColor(plr)
+	if not playerColors[plr.UserId] then
+		playerColors[plr.UserId] = Color3.fromHSV(math.random(), 0.6, 1)
+	end
+	return playerColors[plr.UserId]
 end
 
+-- Add chat message
+local function addChatMessage(player, message)
+	message = message:gsub("#", "") -- remove hashtags
+
+	local ChatLine = Instance.new("TextLabel")
+	ChatLine.BackgroundTransparency = 1
+	ChatLine.Size = UDim2.new(1, -10, 0, 20)
+	ChatLine.Font = Enum.Font.SourceSans
+	ChatLine.TextXAlignment = Enum.TextXAlignment.Left
+	ChatLine.TextSize = 16
+	ChatLine.TextWrapped = true
+	ChatLine.RichText = true
+
+	local color = getPlayerColor(player)
+	local prefix = string.format('<font color="rgb(%d,%d,%d)">%s</font>',
+		color.R * 255, color.G * 255, color.B * 255, player.DisplayName)
+	local time = os.date("[%H:%M:%S]")
+	ChatLine.Text = string.format("%s %s: %s", time, prefix, message)
+	ChatLine.TextColor3 = Color3.new(1, 1, 1)
+
+	local atBottom = false
+	if ChatFrame.CanvasPosition.Y + ChatFrame.AbsoluteWindowSize.Y >= ChatFrame.AbsoluteCanvasSize.Y - 5 then
+		atBottom = true
+	end
+
+	ChatLine.Parent = ChatFrame
+
+	task.defer(function()
+		if atBottom then
+			ChatFrame.CanvasPosition = Vector2.new(0, ChatFrame.AbsoluteCanvasSize.Y)
+		end
+	end)
+end
+
+-- Detect scroll position and animate button
 local buttonVisible = false
-local function updateScrollButton()
-	local gap = chatFrame.AbsoluteCanvasSize.Y - (chatFrame.CanvasPosition.Y + chatFrame.AbsoluteWindowSize.Y)
-	local shouldShow = gap > 20
+local function updateScrollButtonVisibility()
+	local bottomGap = ChatFrame.AbsoluteCanvasSize.Y - (ChatFrame.CanvasPosition.Y + ChatFrame.AbsoluteWindowSize.Y)
+	local shouldShow = bottomGap > 20
 	if shouldShow ~= buttonVisible then
 		buttonVisible = shouldShow
 		fadeButton(shouldShow)
 	end
 end
 
--- Add chat message (optimized)
-local function addChatMessage(player, message)
-	message = message:gsub("#", "")
-	local color = getPlayerColor(player)
-	local prefix = string.format('<font color="rgb(%d,%d,%d)">%s</font>', color.R*255, color.G*255, color.B*255, player.DisplayName)
-	local line = createChatLabel()
-	line.Text = string.format("[%s] %s: %s", os.date("%H:%M:%S"), prefix, message)
+ChatFrame:GetPropertyChangedSignal("CanvasPosition"):Connect(updateScrollButtonVisibility)
+ChatFrame:GetPropertyChangedSignal("AbsoluteCanvasSize"):Connect(updateScrollButtonVisibility)
 
-	local atBottom = chatFrame.CanvasPosition.Y + chatFrame.AbsoluteWindowSize.Y >= chatFrame.AbsoluteCanvasSize.Y - 5
-	line.Parent = chatFrame
-
-	if atBottom then
-		task.defer(function()
-			chatFrame.CanvasPosition = Vector2.new(0, chatFrame.AbsoluteCanvasSize.Y)
-		end)
-	end
-end
-
-chatFrame:GetPropertyChangedSignal("CanvasPosition"):Connect(updateScrollButton)
-chatFrame:GetPropertyChangedSignal("AbsoluteCanvasSize"):Connect(updateScrollButton)
-
-scrollBtn.MouseButton1Click:Connect(function()
-	local tween = TweenService:Create(chatFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		CanvasPosition = Vector2.new(0, chatFrame.AbsoluteCanvasSize.Y)
-	})
+-- Scroll button click
+ScrollDownButton.MouseButton1Click:Connect(function()
+	local tween = TweenService:Create(ChatFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{CanvasPosition = Vector2.new(0, ChatFrame.AbsoluteCanvasSize.Y)})
 	tween:Play()
 end)
 
--- Hook Roblox chat event
+-- Hook chat event
 local ChatEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
 if ChatEvent and ChatEvent:FindFirstChild("OnMessageDoneFiltering") then
 	ChatEvent.OnMessageDoneFiltering.OnClientEvent:Connect(function(data)
 		local sender = Players:FindFirstChild(data.FromSpeaker)
 		if sender then
 			addChatMessage(sender, data.Message)
-			updateScrollButton()
+			updateScrollButtonVisibility()
 		end
 	end)
 end
 
-print("[ChatLogger] Loaded instantly ⚡")
+print("[ChatLogger] Loaded successfully (Animated scroll button).")
