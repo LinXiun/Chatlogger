@@ -1,7 +1,6 @@
 --// Chat Logger with Dropdown Multi-Select Button
---// Put this LocalScript in StarterPlayerScripts
+--// Place this LocalScript in StarterPlayerScripts
 
--- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -35,10 +34,11 @@ dropButton.TextColor3 = Color3.new(1, 1, 1)
 dropButton.Font = Enum.Font.SourceSansBold
 dropButton.TextSize = 16
 dropButton.Text = "Select Player(s) ▼"
+dropButton.ZIndex = 3
 dropButton.Parent = frame
 Instance.new("UICorner", dropButton).CornerRadius = UDim.new(0, 8)
 
--- Dropdown Frame (Hidden)
+-- Dropdown Frame
 local dropFrame = Instance.new("Frame")
 dropFrame.Size = UDim2.new(0, 160, 0, 0)
 dropFrame.Position = UDim2.new(0, 10, 0, 42)
@@ -46,9 +46,11 @@ dropFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 dropFrame.BorderSizePixel = 0
 dropFrame.ClipsDescendants = true
 dropFrame.Visible = false
+dropFrame.ZIndex = 5
 dropFrame.Parent = frame
 Instance.new("UICorner", dropFrame).CornerRadius = UDim.new(0, 8)
 
+-- Player list
 local playerList = Instance.new("ScrollingFrame")
 playerList.Size = UDim2.new(1, -4, 1, -4)
 playerList.Position = UDim2.new(0, 2, 0, 2)
@@ -56,6 +58,7 @@ playerList.BackgroundTransparency = 1
 playerList.ScrollBarThickness = 6
 playerList.AutomaticCanvasSize = Enum.AutomaticSize.Y
 playerList.CanvasSize = UDim2.new(0, 0, 0, 0)
+playerList.ZIndex = 6
 playerList.Parent = dropFrame
 
 local listLayout = Instance.new("UIListLayout")
@@ -72,7 +75,9 @@ chatFrame.BorderSizePixel = 0
 chatFrame.ScrollBarThickness = 8
 chatFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 chatFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+chatFrame.ZIndex = 1
 chatFrame.Parent = frame
+
 local chatLayout = Instance.new("UIListLayout")
 chatLayout.SortOrder = Enum.SortOrder.LayoutOrder
 chatLayout.Padding = UDim.new(0, 4)
@@ -118,7 +123,7 @@ end
 -- Selected players
 local selectedPlayers = {}
 
--- Populate dropdown list
+-- Populate dropdown
 local function updatePlayerList()
 	playerList:ClearAllChildren()
 	for _, plr in ipairs(Players:GetPlayers()) do
@@ -129,6 +134,7 @@ local function updatePlayerList()
 		b.Text = plr.DisplayName
 		b.Font = Enum.Font.SourceSans
 		b.TextSize = 16
+		b.ZIndex = 6
 		b.Parent = playerList
 		Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
 
@@ -148,7 +154,7 @@ updatePlayerList()
 Players.PlayerAdded:Connect(updatePlayerList)
 Players.PlayerRemoving:Connect(updatePlayerList)
 
--- Toggle dropdown animation
+-- Toggle dropdown
 local dropOpen = false
 local function toggleDropdown()
 	if dropOpen then
@@ -164,7 +170,7 @@ end
 
 dropButton.MouseButton1Click:Connect(toggleDropdown)
 
--- Click outside to close dropdown
+-- Close dropdown if clicked outside
 UserInputService.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 and dropOpen then
 		local m = UserInputService:GetMouseLocation()
@@ -233,12 +239,13 @@ scrollBtn.MouseButton1Click:Connect(function()
 	TweenService:Create(chatFrame, TweenInfo.new(0.3), {CanvasPosition = Vector2.new(0, chatFrame.AbsoluteCanvasSize.Y)}):Play()
 end)
 
--- Hook chat system
+-- Hook Roblox default chat
 local ChatEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
 if ChatEvent and ChatEvent:FindFirstChild("OnMessageDoneFiltering") then
 	ChatEvent.OnMessageDoneFiltering.OnClientEvent:Connect(function(data)
 		local sender = Players:FindFirstChild(data.FromSpeaker)
 		if sender then
+			-- Log all chats if no player selected, else only selected
 			if next(selectedPlayers) == nil or selectedPlayers[sender.UserId] then
 				addChat(sender, data.Message)
 				updateScroll()
@@ -247,4 +254,4 @@ if ChatEvent and ChatEvent:FindFirstChild("OnMessageDoneFiltering") then
 	end)
 end
 
-print("[ChatLogger] Dropdown multi-select chat logger loaded.")
+print("[ChatLogger] Fully loaded and ready!")
