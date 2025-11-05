@@ -10,10 +10,7 @@ screenGui.Name = "ChatLoggerGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Blur effect
-local blur = Instance.new("BlurEffect")
-blur.Size = 12
-blur.Parent = Lighting
+-- (Blur effect removed)
 
 -- Main container
 local mainFrame = Instance.new("Frame")
