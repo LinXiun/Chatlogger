@@ -1,270 +1,202 @@
--- // Chat Logger with Dropdown Filter, 12hr Timestamp, and Spectator System
--- // by ChatGPT (optimized and modular)
+--// Chat Logger with Spectate System (DisplayNames, Manual Scroll, Indicator, 12hr Time)
+--// Made for LocalScript inside StarterGui
 
--- Services
 local Players = game:GetService("Players")
-local TextChatService = game:GetService("TextChatService")
 local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+local TextChatService = game:GetService("TextChatService")
 
--- Create UI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "ChatLogger"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+-- GUI Setup
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ChatLogger"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
+-- Main Frame
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 600, 0, 400)
-mainFrame.Position = UDim2.new(0.5, -300, 0.5, -200)
+mainFrame.Size = UDim2.new(0.4, 0, 0.5, 0)
+mainFrame.Position = UDim2.new(0.3, 0, 0.25, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 mainFrame.BorderSizePixel = 0
-mainFrame.Parent = screenGui
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = ScreenGui
 
-local corner = Instance.new("UICorner", mainFrame)
-corner.CornerRadius = UDim.new(0, 12)
+-- UI Corner + Stroke
+Instance.new("UICorner", mainFrame)
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 1
+stroke.Color = Color3.fromRGB(60, 60, 60)
+stroke.Parent = mainFrame
 
-local titleBtn = Instance.new("TextButton")
-titleBtn.Size = UDim2.new(1, 0, 0, 32)
-titleBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-titleBtn.Text = "Chat Logger ▼"
-titleBtn.Font = Enum.Font.SourceSansBold
-titleBtn.TextSize = 20
-titleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleBtn.Parent = mainFrame
+-- Title Bar
+local titleBar = Instance.new("TextLabel")
+titleBar.Size = UDim2.new(1, -30, 0, 28)
+titleBar.Position = UDim2.new(0, 5, 0, 0)
+titleBar.BackgroundTransparency = 1
+titleBar.Text = "Chat Logger"
+titleBar.Font = Enum.Font.SourceSansSemibold
+titleBar.TextSize = 20
+titleBar.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleBar.TextXAlignment = Enum.TextXAlignment.Left
+titleBar.Parent = mainFrame
 
-local dropdownFrame = Instance.new("Frame")
-dropdownFrame.Size = UDim2.new(1, -10, 0, 150)
-dropdownFrame.Position = UDim2.new(0, 5, 0, 34)
-dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-dropdownFrame.Visible = false
-dropdownFrame.ClipsDescendants = true
-dropdownFrame.Parent = mainFrame
+-- Return button (small symbol only)
+local returnBtn = Instance.new("TextButton")
+returnBtn.Size = UDim2.new(0, 26, 0, 26)
+returnBtn.Position = UDim2.new(1, -28, 0, 1)
+returnBtn.BackgroundTransparency = 1
+returnBtn.Font = Enum.Font.SourceSansBold
+returnBtn.TextSize = 18
+returnBtn.Text = "↩"
+returnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+returnBtn.Parent = mainFrame
 
-local dropCorner = Instance.new("UICorner", dropdownFrame)
-dropCorner.CornerRadius = UDim.new(0, 8)
-
-local dropScroll = Instance.new("ScrollingFrame")
-dropScroll.Size = UDim2.new(1, 0, 1, 0)
-dropScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-dropScroll.ScrollBarThickness = 6
-dropScroll.BackgroundTransparency = 1
-dropScroll.Parent = dropdownFrame
-
-local dropLayout = Instance.new("UIListLayout", dropScroll)
-dropLayout.Padding = UDim.new(0, 3)
-dropLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
--- Dropdown toggle
-local dropdownOpen = false
-titleBtn.MouseButton1Click:Connect(function()
-	dropdownOpen = not dropdownOpen
-	dropdownFrame.Visible = dropdownOpen
-	titleBtn.Text = dropdownOpen and "Chat Logger ▲" or "Chat Logger ▼"
-end)
-
--- Player filter storage
-local selectedPlayers = {}
-
--- Function to refresh dropdown list
-local function refreshDropdown()
-	for _, child in ipairs(dropScroll:GetChildren()) do
-		if child:IsA("Frame") then child:Destroy() end
-	end
-
-	for _, player in ipairs(Players:GetPlayers()) do
-		local item = Instance.new("Frame")
-		item.Size = UDim2.new(1, -6, 0, 24)
-		item.BackgroundTransparency = 1
-		item.Parent = dropScroll
-
-		local check = Instance.new("TextButton")
-		check.Size = UDim2.new(0, 20, 0, 20)
-		check.Position = UDim2.new(0, 4, 0.5, -10)
-		check.Text = selectedPlayers[player.Name] and "☑" or "☐"
-		check.Font = Enum.Font.SourceSansBold
-		check.TextSize = 18
-		check.BackgroundTransparency = 1
-		check.TextColor3 = Color3.fromRGB(255, 255, 255)
-		check.Parent = item
-
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(1, -30, 1, 0)
-		label.Position = UDim2.new(0, 28, 0, 0)
-		label.BackgroundTransparency = 1
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.Font = Enum.Font.SourceSans
-		label.TextSize = 18
-		label.TextColor3 = Color3.fromRGB(230, 230, 230)
-		label.Text = player.DisplayName
-		label.Parent = item
-
-		check.MouseButton1Click:Connect(function()
-			selectedPlayers[player.Name] = not selectedPlayers[player.Name]
-			check.Text = selectedPlayers[player.Name] and "☑" or "☐"
-		end)
-	end
-
-	task.defer(function()
-		dropScroll.CanvasSize = UDim2.new(0, 0, 0, dropLayout.AbsoluteContentSize.Y + 10)
-	end)
-end
-
-Players.PlayerAdded:Connect(refreshDropdown)
-Players.PlayerRemoving:Connect(refreshDropdown)
-refreshDropdown()
-
--- ScrollFrame for chat logs
+-- Scroll Frame
 local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Size = UDim2.new(1, -10, 1, -42)
-scrollFrame.Position = UDim2.new(0, 5, 0, 38)
-scrollFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-scrollFrame.BorderSizePixel = 0
+scrollFrame.Size = UDim2.new(1, -8, 1, -34)
+scrollFrame.Position = UDim2.new(0, 4, 0, 30)
+scrollFrame.BackgroundTransparency = 1
 scrollFrame.ScrollBarThickness = 6
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scrollFrame.CanvasSize = UDim2.new()
 scrollFrame.Parent = mainFrame
 
 local layout = Instance.new("UIListLayout", scrollFrame)
 layout.Padding = UDim.new(0, 3)
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- Indicator at bottom center
+-- Indicator at bottom middle
 local indicator = Instance.new("TextLabel")
 indicator.AnchorPoint = Vector2.new(0.5, 1)
-indicator.Position = UDim2.new(0.5, 0, 1, -4)
-indicator.Size = UDim2.new(0, 200, 0, 18)
-indicator.BackgroundTransparency = 1
-indicator.Font = Enum.Font.Code
-indicator.TextSize = 14
-indicator.TextColor3 = Color3.fromRGB(150, 150, 150)
-indicator.Text = ""
+indicator.Position = UDim2.new(0.5, 0, 1, -6)
+indicator.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+indicator.Size = UDim2.new(0, 100, 0, 24)
+indicator.Text = "Idle"
+indicator.Font = Enum.Font.SourceSans
+indicator.TextSize = 16
+indicator.TextColor3 = Color3.fromRGB(200, 200, 200)
+indicator.Visible = false
 indicator.Parent = mainFrame
+Instance.new("UICorner", indicator)
 
--- Return button
-local returnBtn = Instance.new("TextButton")
-returnBtn.Size = UDim2.new(0, 24, 0, 24)
-returnBtn.Position = UDim2.new(1, -28, 0, 4)
-returnBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-returnBtn.Text = "↩"
-returnBtn.Font = Enum.Font.SourceSansBold
-returnBtn.TextSize = 18
-returnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-returnBtn.Parent = mainFrame
+-- Spectate system
+local camera = workspace.CurrentCamera
+local spectating = false
+local spectateTarget
 
-local btnCorner = Instance.new("UICorner", returnBtn)
-btnCorner.CornerRadius = UDim.new(0, 6)
-
-local spectatingTarget = nil
-local function spectatePlayer(username)
-	local target = Players:FindFirstChild(username)
-	if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-		spectatingTarget = target
-		indicator.Text = "Spectating: " .. target.DisplayName
-	else
-		spectatingTarget = nil
-		indicator.Text = ""
-	end
+local function spectatePlayer(playerName)
+    local target = Players:FindFirstChild(playerName)
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        spectating = true
+        spectateTarget = target
+        indicator.Text = "Spectating " .. target.DisplayName
+        indicator.Visible = true
+        task.spawn(function()
+            while spectating and spectateTarget == target do
+                camera.CameraSubject = target.Character:FindFirstChildWhichIsA("Humanoid")
+                task.wait()
+            end
+        end)
+    end
 end
 
 returnBtn.MouseButton1Click:Connect(function()
-	spectatingTarget = nil
-	indicator.Text = ""
+    spectating = false
+    spectateTarget = nil
+    indicator.Text = "Idle"
+    indicator.Visible = false
+    camera.CameraSubject = LocalPlayer.Character:FindFirstChildWhichIsA("Humanoid")
 end)
 
-game:GetService("RunService").RenderStepped:Connect(function()
-	if spectatingTarget and spectatingTarget.Character and spectatingTarget.Character:FindFirstChild("HumanoidRootPart") then
-		Camera.CameraSubject = spectatingTarget.Character:FindFirstChild("Humanoid")
-	end
-end)
-
--- Format timestamp (12-hour, compact)
-local function formatTimestamp()
-	local t = os.date("*t")
-	local hour = t.hour % 12
-	if hour == 0 then hour = 12 end
-	local ampm = (t.hour < 12) and "AM" or "PM"
-	return string.format("%02d:%02d%s", hour, t.min, ampm)
+-- Timestamp (12-hour format, compressed)
+local function formatTimestampUTCplus8()
+    local time = os.date("!*t", os.time() + (8 * 3600))
+    local hour = time.hour % 12
+    if hour == 0 then hour = 12 end
+    local ampm = (time.hour >= 12) and "PM" or "AM"
+    return string.format("%02d:%02d%s", hour, time.min, ampm)
 end
 
--- Log messages
+-- Color generator per user
+local function getColorForName(name)
+    local hash = 0
+    for i = 1, #name do
+        hash = (hash + string.byte(name, i) * i) % 255
+    end
+    return Color3.fromHSV((hash / 255), 0.6, 1)
+end
+
+-- Log Message
 local function logMessage(text, displayName, username)
-	-- Filter by selected players
-	if next(selectedPlayers) then
-		if not selectedPlayers[username] then return end
-	end
+    local entry = Instance.new("Frame")
+    entry.BackgroundTransparency = 1
+    entry.Size = UDim2.new(1, -10, 0, 0)
+    entry.AutomaticSize = Enum.AutomaticSize.Y
+    entry.Parent = scrollFrame
 
-	local entry = Instance.new("Frame")
-	entry.Size = UDim2.new(1, -8, 0, 0)
-	entry.BackgroundTransparency = 1
-	entry.AutomaticSize = Enum.AutomaticSize.Y
-	entry.Parent = scrollFrame
+    local tsLabel = Instance.new("TextLabel", entry)
+    tsLabel.BackgroundTransparency = 1
+    tsLabel.Font = Enum.Font.Code
+    tsLabel.TextSize = 14
+    tsLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+    tsLabel.Text = formatTimestampUTCplus8()
+    tsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    tsLabel.Size = UDim2.new(0, 52, 0, 18)
 
-	local tsLabel = Instance.new("TextLabel")
-	tsLabel.Size = UDim2.new(0, 60, 0, 18)
-	tsLabel.BackgroundTransparency = 1
-	tsLabel.Font = Enum.Font.Code
-	tsLabel.TextSize = 14
-	tsLabel.Text = formatTimestamp()
-	tsLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-	tsLabel.TextXAlignment = Enum.TextXAlignment.Left
-	tsLabel.Parent = entry
+    local nameBtn = Instance.new("TextButton", entry)
+    nameBtn.BackgroundTransparency = 1
+    nameBtn.AutoButtonColor = false
+    nameBtn.Font = Enum.Font.SourceSansBold
+    nameBtn.TextSize = 18
+    nameBtn.Text = displayName
+    nameBtn.TextColor3 = getColorForName(username)
+    nameBtn.TextXAlignment = Enum.TextXAlignment.Left
+    nameBtn.Position = UDim2.new(0, 58, 0, -1)
+    nameBtn.Size = UDim2.new(0, 120, 0, 0)
+    nameBtn.AutomaticSize = Enum.AutomaticSize.Y
+    nameBtn.MouseButton1Click:Connect(function()
+        spectatePlayer(username)
+    end)
 
-	local nameBtn = Instance.new("TextButton")
-	nameBtn.Size = UDim2.new(0, 120, 0, 18)
-	nameBtn.Position = UDim2.new(0, 65, 0, 0)
-	nameBtn.BackgroundTransparency = 1
-	nameBtn.TextXAlignment = Enum.TextXAlignment.Left
-	nameBtn.Font = Enum.Font.SourceSansBold
-	nameBtn.TextSize = 18
-	nameBtn.Text = displayName
-	nameBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	nameBtn.Parent = entry
-	nameBtn.MouseButton1Click:Connect(function()
-		spectatePlayer(username)
-	end)
-
-	local msgLabel = Instance.new("TextLabel")
-	msgLabel.Size = UDim2.new(1, -200, 0, 0)
-	msgLabel.Position = UDim2.new(0, 200, 0, 0)
-	msgLabel.BackgroundTransparency = 1
-	msgLabel.Font = Enum.Font.SourceSans
-	msgLabel.TextSize = 18
-	msgLabel.TextWrapped = true
-	msgLabel.TextXAlignment = Enum.TextXAlignment.Left
-	msgLabel.AutomaticSize = Enum.AutomaticSize.Y
-	msgLabel.Text = text
-	msgLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-	msgLabel.Parent = entry
-
-	task.defer(function()
-		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
-	end)
+    local msgLabel = Instance.new("TextLabel", entry)
+    msgLabel.BackgroundTransparency = 1
+    msgLabel.Font = Enum.Font.SourceSans
+    msgLabel.TextSize = 18
+    msgLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+    msgLabel.TextWrapped = true
+    msgLabel.TextXAlignment = Enum.TextXAlignment.Left
+    msgLabel.TextYAlignment = Enum.TextYAlignment.Top
+    msgLabel.Position = UDim2.new(0, 190, 0, 0)
+    msgLabel.Size = UDim2.new(1, -200, 0, 0)
+    msgLabel.AutomaticSize = Enum.AutomaticSize.Y
+    msgLabel.Text = text
 end
 
 -- Chat connections
 if TextChatService.MessageReceived then
-	TextChatService.MessageReceived:Connect(function(message)
-		if message.Text and message.TextSource then
-			local userId = message.TextSource.UserId
-			local displayName, username = "[Unknown]", "[Unknown]"
-			if userId then
-				local p = Players:GetPlayerByUserId(userId)
-				if p then
-					displayName = p.DisplayName
-					username = p.Name
-				end
-			end
-			logMessage(message.Text, displayName, username)
-		end
-	end)
+    TextChatService.MessageReceived:Connect(function(message)
+        if message.Text and message.TextSource then
+            local userId = message.TextSource.UserId
+            local displayName, username = "[Unknown]", "[Unknown]"
+            if userId then
+                local p = Players:GetPlayerByUserId(userId)
+                if p then
+                    displayName = p.DisplayName
+                    username = p.Name
+                end
+            end
+            logMessage(message.Text, displayName, username)
+        end
+    end)
 else
-	Players.PlayerAdded:Connect(function(p)
-		p.Chatted:Connect(function(msg)
-			logMessage(msg, p.DisplayName, p.Name)
-		end)
-	end)
-	for _, p in ipairs(Players:GetPlayers()) do
-		p.Chatted:Connect(function(msg)
-			logMessage(msg, p.DisplayName, p.Name)
-		end)
-	end
+    Players.PlayerAdded:Connect(function(p)
+        p.Chatted:Connect(function(msg)
+            logMessage(msg, p.DisplayName, p.Name)
+        end)
+    end)
+    for _, p in ipairs(Players:GetPlayers()) do
+        p.Chatted:Connect(function(msg)
+            logMessage(msg, p.DisplayName, p.Name)
+        end)
+    end
 end
