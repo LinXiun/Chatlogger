@@ -1,5 +1,4 @@
--- Chat Logger with DisplayName Support, Spectate Fix, Manual Scroll,
--- and Animated Bottom-Middle New Message Indicator
+-- Chat Logger GUI (DisplayName, 12-hour time, Spectate fix, Manual scroll, Bottom indicator)
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
@@ -40,7 +39,7 @@ title.TextSize = 16
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = header
 
--- Return button
+-- Return button (⟳)
 local returnBtn = Instance.new("TextButton")
 returnBtn.Size = UDim2.new(0, 24, 0, 24)
 returnBtn.Position = UDim2.new(1, -60, 0, 2)
@@ -65,7 +64,7 @@ spectateLabel.Text = ""
 spectateLabel.TextXAlignment = Enum.TextXAlignment.Left
 spectateLabel.Parent = header
 
--- Hide button
+-- Hide/unhide buttons
 local hideBtn = Instance.new("TextButton")
 hideBtn.Size = UDim2.new(0, 20, 0, 20)
 hideBtn.Position = UDim2.new(1, -24, 0, 4)
@@ -78,7 +77,6 @@ hideBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
 hideBtn.Parent = header
 Instance.new("UICorner", hideBtn).CornerRadius = UDim.new(0, 6)
 
--- Unhide button
 local unhideBtn = Instance.new("TextButton")
 unhideBtn.Size = UDim2.new(0, 30, 0, 30)
 unhideBtn.Position = UDim2.new(0, 10, 0, 10)
@@ -130,7 +128,7 @@ layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Padding = UDim.new(0, 6)
 layout.Parent = scrollFrame
 
--- New message indicator (bottom center)
+-- New message indicator (bottom middle)
 local newMsgBtn = Instance.new("TextButton")
 newMsgBtn.Size = UDim2.new(0, 160, 0, 26)
 newMsgBtn.AnchorPoint = Vector2.new(0.5, 1)
@@ -145,9 +143,8 @@ newMsgBtn.Visible = false
 newMsgBtn.Parent = mainFrame
 Instance.new("UICorner", newMsgBtn).CornerRadius = UDim.new(0, 6)
 
--- Animation logic
-local fadeInTween = TweenService:Create(newMsgBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0, TextTransparency = 0})
-local fadeOutTween = TweenService:Create(newMsgBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1, TextTransparency = 1})
+local fadeInTween = TweenService:Create(newMsgBtn, TweenInfo.new(0.25), {BackgroundTransparency = 0, TextTransparency = 0})
+local fadeOutTween = TweenService:Create(newMsgBtn, TweenInfo.new(0.25), {BackgroundTransparency = 1, TextTransparency = 1})
 
 local function showNewMsgButton()
 	if not newMsgBtn.Visible then
@@ -158,32 +155,29 @@ end
 local function hideNewMsgButton()
 	if newMsgBtn.Visible then
 		fadeOutTween:Play()
-		task.delay(0.25, function()
-			newMsgBtn.Visible = false
-		end)
+		task.delay(0.25, function() newMsgBtn.Visible = false end)
 	end
 end
-
 newMsgBtn.MouseButton1Click:Connect(function()
 	scrollFrame.CanvasPosition = Vector2.new(0, math.max(0, layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y))
 	hideNewMsgButton()
 end)
-
--- Detect scroll position to hide button
 scrollFrame:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
 	local bottomThreshold = layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y - 20
-	if scrollFrame.CanvasPosition.Y >= bottomThreshold then
-		hideNewMsgButton()
-	end
+	if scrollFrame.CanvasPosition.Y >= bottomThreshold then hideNewMsgButton() end
 end)
 
--- Utility functions
+-- Timestamp (12-hour compressed, no space before AM/PM)
 local function formatTimestampUTCplus8()
 	local now = os.time()
 	local utc8 = os.date("!*t", now + 8 * 3600)
-	return string.format("%02d:%02d:%02d", utc8.hour, utc8.min, utc8.sec)
+	local hour, min = utc8.hour, utc8.min
+	local ampm = (hour >= 12) and "PM" or "AM"
+	if hour == 0 then hour = 12 elseif hour > 12 then hour = hour - 12 end
+	return string.format("%d:%02d%s", hour, min, ampm)
 end
 
+-- Color utilities
 local function hashString(s)
 	local h = 0
 	for i = 1, #s do
@@ -191,39 +185,29 @@ local function hashString(s)
 	end
 	return h
 end
-
 local function hslToRgb(h, s, l)
 	local function hue2rgb(p, q, t)
-		if t < 0 then t = t + 1 end
-		if t > 1 then t = t - 1 end
+		if t < 0 then t += 1 end
+		if t > 1 then t -= 1 end
 		if t < 1/6 then return p + (q - p) * 6 * t end
 		if t < 1/2 then return q end
 		if t < 2/3 then return p + (q - p) * (2/3 - t) * 6 end
 		return p
 	end
-	local r, g, b
-	if s == 0 then
-		r, g, b = l, l, l
-	else
-		local q = l < 0.5 and l * (1 + s) or l + s - l * s
-		local p = 2 * l - q
-		r = hue2rgb(p, q, h + 1/3)
-		g = hue2rgb(p, q, h)
-		b = hue2rgb(p, q, h - 1/3)
-	end
-	return Color3.new(r, g, b)
+	local q = l < 0.5 and l * (1 + s) or l + s - l * s
+	local p = 2 * l - q
+	return Color3.new(hue2rgb(p, q, h + 1/3), hue2rgb(p, q, h), hue2rgb(p, q, h - 1/3))
 end
-
 local usernameColorCache = {}
 local function getColorForName(name)
 	if usernameColorCache[name] then return usernameColorCache[name] end
-	local hval = hashString(name)
-	local hue = (hval % 360) / 360
+	local hue = (hashString(name) % 360) / 360
 	local color = hslToRgb(hue, 0.55, 0.55)
 	usernameColorCache[name] = color
 	return color
 end
 
+-- Spectate logic
 local function spectatePlayer(targetName)
 	local target = Players:FindFirstChild(targetName)
 	if not target or not target.Character then return end
@@ -234,7 +218,6 @@ local function spectatePlayer(targetName)
 		spectateLabel.Text = "Spectating: " .. target.DisplayName
 	end
 end
-
 local function returnToLocal()
 	local char = player.Character
 	if not char then return end
@@ -245,10 +228,9 @@ local function returnToLocal()
 		spectateLabel.Text = ""
 	end
 end
-
 returnBtn.MouseButton1Click:Connect(returnToLocal)
 
--- Log chat messages
+-- Log messages
 local function logMessage(text, displayName, username)
 	local entry = Instance.new("Frame")
 	entry.Size = UDim2.new(1, -10, 0, 0)
@@ -257,17 +239,17 @@ local function logMessage(text, displayName, username)
 	entry.Parent = scrollFrame
 
 	local tsLabel = Instance.new("TextLabel", entry)
-	tsLabel.Size = UDim2.new(0, 64, 0, 18)
+	tsLabel.Size = UDim2.new(0, 60, 0, 18)
 	tsLabel.BackgroundTransparency = 1
 	tsLabel.Font = Enum.Font.Code
 	tsLabel.TextSize = 14
 	tsLabel.Text = formatTimestampUTCplus8()
-	tsLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+	tsLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
 	tsLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 	local nameBtn = Instance.new("TextButton", entry)
 	nameBtn.Size = UDim2.new(0, 120, 0, 0)
-	nameBtn.Position = UDim2.new(0, 70, 0, 0)
+	nameBtn.Position = UDim2.new(0, 66, 0, 0)
 	nameBtn.BackgroundTransparency = 1
 	nameBtn.AutoButtonColor = false
 	nameBtn.Font = Enum.Font.SourceSansBold
@@ -276,19 +258,16 @@ local function logMessage(text, displayName, username)
 	nameBtn.TextXAlignment = Enum.TextXAlignment.Left
 	nameBtn.TextColor3 = getColorForName(username)
 	nameBtn.AutomaticSize = Enum.AutomaticSize.Y
-	nameBtn.MouseButton1Click:Connect(function()
-		spectatePlayer(username)
-	end)
+	nameBtn.MouseButton1Click:Connect(function() spectatePlayer(username) end)
 
 	local msgLabel = Instance.new("TextLabel", entry)
 	msgLabel.Size = UDim2.new(1, -200, 0, 0)
-	msgLabel.Position = UDim2.new(0, 200, 0, 0)
+	msgLabel.Position = UDim2.new(0, 190, 0, 0)
 	msgLabel.BackgroundTransparency = 1
 	msgLabel.Font = Enum.Font.SourceSans
 	msgLabel.TextSize = 18
 	msgLabel.TextWrapped = true
 	msgLabel.TextXAlignment = Enum.TextXAlignment.Left
-	msgLabel.TextYAlignment = Enum.TextYAlignment.Top
 	msgLabel.AutomaticSize = Enum.AutomaticSize.Y
 	msgLabel.Text = text
 	msgLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
@@ -304,7 +283,7 @@ local function logMessage(text, displayName, username)
 	end)
 end
 
--- Hook chat events
+-- Hook chat system
 if TextChatService.MessageReceived then
 	TextChatService.MessageReceived:Connect(function(message)
 		if message.Text and message.TextSource then
