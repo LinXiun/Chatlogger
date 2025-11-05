@@ -1,15 +1,8 @@
--- Chat Logger with DisplayNames, hide/unhide, spectate, UTC+8 timestamps,
--- Return to Me, and saved position/size
-
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
-
--- Saved state
-local savedPos = UDim2.new(0, 10, 0, 10)
-local savedSize = UDim2.new(0, 360, 0, 300)
 
 -- GUI setup
 local screenGui = Instance.new("ScreenGui")
@@ -18,8 +11,8 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = savedSize
-mainFrame.Position = savedPos
+mainFrame.Size = UDim2.new(0, 360, 0, 300)
+mainFrame.Position = UDim2.new(0, 10, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BackgroundTransparency = 0.5
 mainFrame.BorderSizePixel = 0
@@ -100,14 +93,10 @@ Instance.new("UICorner", unhideBtn).CornerRadius = UDim.new(0, 6)
 
 -- Hide/unhide logic
 hideBtn.MouseButton1Click:Connect(function()
-	savedPos = mainFrame.Position
-	savedSize = mainFrame.Size
 	mainFrame.Visible = false
 	unhideBtn.Visible = true
 end)
 unhideBtn.MouseButton1Click:Connect(function()
-	mainFrame.Position = savedPos
-	mainFrame.Size = savedSize
 	mainFrame.Visible = true
 	unhideBtn.Visible = false
 end)
@@ -153,7 +142,6 @@ UserInputService.InputChanged:Connect(function(input)
 	if resizing and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local delta = input.Position - startPos
 		mainFrame.Size = UDim2.new(0, math.max(240, startSize.X + delta.X), 0, math.max(140, startSize.Y + delta.Y))
-		savedSize = mainFrame.Size
 	end
 end)
 UserInputService.InputEnded:Connect(function(input)
@@ -211,13 +199,14 @@ local function getColorForName(name)
 end
 
 -- Spectate functions
-local function spectatePlayer(targetPlayer)
-	if not targetPlayer or not targetPlayer.Character then return end
-	local humanoid = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
+local function spectatePlayer(targetName)
+	local target = Players:FindFirstChild(targetName)
+	if not target or not target.Character then return end
+	local humanoid = target.Character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		camera.CameraType = Enum.CameraType.Custom
 		camera.CameraSubject = humanoid
-		spectateLabel.Text = "Spectating: " .. (targetPlayer.DisplayName or targetPlayer.Name)
+		spectateLabel.Text = "Spectating: " .. targetName
 	end
 end
 
@@ -235,7 +224,7 @@ end
 returnBtn.MouseButton1Click:Connect(returnToLocal)
 
 -- Log messages
-local function logMessage(text, authorDisplayName, authorPlayer)
+local function logMessage(text, authorName)
 	local entry = Instance.new("Frame")
 	entry.Size = UDim2.new(1, -10, 0, 0)
 	entry.BackgroundTransparency = 1
@@ -265,14 +254,12 @@ local function logMessage(text, authorDisplayName, authorPlayer)
 	nameBtn.AutoButtonColor = false
 	nameBtn.Font = Enum.Font.SourceSansBold
 	nameBtn.TextSize = 18
-	nameBtn.Text = authorDisplayName
+	nameBtn.Text = authorName
 	nameBtn.TextXAlignment = Enum.TextXAlignment.Left
-	nameBtn.TextColor3 = getColorForName(authorDisplayName)
+	nameBtn.TextColor3 = getColorForName(authorName)
 	nameBtn.AutomaticSize = Enum.AutomaticSize.Y
 	nameBtn.MouseButton1Click:Connect(function()
-		if authorPlayer then
-			spectatePlayer(authorPlayer)
-		end
+		spectatePlayer(authorName)
 	end)
 
 	local msgLabel = Instance.new("TextLabel", entry)
@@ -304,28 +291,24 @@ end
 if TextChatService.MessageReceived then
 	TextChatService.MessageReceived:Connect(function(message)
 		if message.Text and message.TextSource then
-			local authorName = message.TextSource.Name
-			local authorDisplayName = message.TextSource.DisplayName or authorName
+			local author = message.TextSource.Name
 			local userId = message.TextSource.UserId
-			local authorPlayer = nil
 			if userId then
-				authorPlayer = Players:GetPlayerByUserId(userId)
-				if authorPlayer then
-					authorDisplayName = authorPlayer.DisplayName or authorPlayer.Name
-				end
+				local p = Players:GetPlayerByUserId(userId)
+				if p then author = p.Name end
 			end
-			logMessage(message.Text, authorDisplayName, authorPlayer)
+			logMessage(message.Text, author)
 		end
 	end)
 else
 	for _, p in ipairs(Players:GetPlayers()) do
 		p.Chatted:Connect(function(msg)
-			logMessage(msg, p.DisplayName or p.Name, p)
+			logMessage(msg, p.Name)
 		end)
 	end
 	Players.PlayerAdded:Connect(function(p)
 		p.Chatted:Connect(function(msg)
-			logMessage(msg, p.DisplayName or p.Name, p)
+			logMessage(msg, p.Name)
 		end)
 	end)
 end
