@@ -199,3 +199,93 @@ local function logMessage(text, authorName)
 	local pad = Instance.new("UIPadding", entry)
 	pad.PaddingLeft = UDim.new(0, 6)
 	pad.PaddingRight = UDim.new(0, 6)
+	pad.PaddingTop = UDim.new(0, 2)
+	pad.PaddingBottom = UDim.new(0, 2)
+
+	local tsLabel = Instance.new("TextLabel", entry)
+	tsLabel.Size = UDim2.new(0, 64, 0, 18)
+	tsLabel.BackgroundTransparency = 1
+	tsLabel.Font = Enum.Font.Code
+	tsLabel.TextSize = 14
+	tsLabel.Text = formatTimestampUTCplus8()
+	tsLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+	tsLabel.TextXAlignment = Enum.TextXAlignment.Left
+	tsLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+	local nameBtn = Instance.new("TextButton", entry)
+	nameBtn.Size = UDim2.new(0, 120, 0, 0)
+	nameBtn.Position = UDim2.new(0, 70, 0, 0)
+	nameBtn.BackgroundTransparency = 1
+	nameBtn.AutoButtonColor = false
+	nameBtn.Font = Enum.Font.SourceSansBold
+	nameBtn.TextSize = 18
+	nameBtn.Text = authorName
+	nameBtn.TextXAlignment = Enum.TextXAlignment.Left
+	nameBtn.TextColor3 = getColorForName(authorName)
+	nameBtn.AutomaticSize = Enum.AutomaticSize.Y
+
+	nameBtn.MouseButton1Click:Connect(function()
+		spectatePlayer(authorName)
+	end)
+
+	local msgLabel = Instance.new("TextLabel", entry)
+	msgLabel.Size = UDim2.new(1, -200, 0, 0)
+	msgLabel.Position = UDim2.new(0, 200, 0, 0)
+	msgLabel.BackgroundTransparency = 1
+	msgLabel.Font = Enum.Font.SourceSans
+	msgLabel.TextSize = 18
+	msgLabel.TextWrapped = true
+	msgLabel.TextXAlignment = Enum.TextXAlignment.Left
+	msgLabel.TextYAlignment = Enum.TextYAlignment.Top
+	msgLabel.AutomaticSize = Enum.AutomaticSize.Y
+	msgLabel.Text = text
+	msgLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+
+	local sep = Instance.new("Frame", entry)
+	sep.Size = UDim2.new(1, 0, 0, 1)
+	sep.Position = UDim2.new(0, 0, 1, -2)
+	sep.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	sep.BorderSizePixel = 0
+
+	task.defer(function()
+		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
+		scrollFrame.CanvasPosition = Vector2.new(0, math.max(0, layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y))
+	end)
+end
+
+-- Listen to TextChatService (new chat system)
+if TextChatService.MessageReceived then
+	TextChatService.MessageReceived:Connect(function(message)
+		if message.Text and message.TextSource then
+			local author = tostring(message.TextSource.Name)
+			if message.TextSource.UserId then
+				local p = Players:GetPlayerByUserId(message.TextSource.UserId)
+				if p then author = p.Name end
+			end
+			logMessage(message.Text, author)
+		end
+	end)
+end
+
+-- Fallback: legacy chat system
+for _, p in ipairs(Players:GetPlayers()) do
+	p.Chatted:Connect(function(msg)
+		logMessage(msg, p.Name)
+	end)
+end
+Players.PlayerAdded:Connect(function(p)
+	p.Chatted:Connect(function(msg)
+		logMessage(msg, p.Name)
+	end)
+end)
+
+-- Restore camera to local player when respawning
+player.CharacterAdded:Connect(function()
+	task.wait(0.1)
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		camera.CameraType = Enum.CameraType.Custom
+		camera.CameraSubject = humanoid
+		spectateLabel.Text = ""
+	end
+end)
