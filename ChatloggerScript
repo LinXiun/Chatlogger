@@ -113,14 +113,14 @@ unhideBtn.MouseButton1Click:Connect(function()
 end)
 
 -------------------------------------------------------
--- 📜 Player List Panel (Toggle via + button)
+-- 📜 Player List Panel (Slide toggle on right)
 -------------------------------------------------------
 local playerPanel = Instance.new("Frame")
 playerPanel.Size = UDim2.new(0, 180, 1, 0)
-playerPanel.Position = UDim2.new(1, 4, 0, 0)
+playerPanel.Position = UDim2.new(1, 10, 0, 0)
 playerPanel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-playerPanel.BackgroundTransparency = 0.1
 playerPanel.BorderSizePixel = 0
+playerPanel.BackgroundTransparency = 0.1
 playerPanel.Visible = false
 playerPanel.Parent = mainFrame
 Instance.new("UICorner", playerPanel).CornerRadius = UDim.new(0, 8)
@@ -146,7 +146,7 @@ local function refreshPlayerList()
 
 	for _, p in ipairs(Players:GetPlayers()) do
 		local btn = Instance.new("TextButton")
-		btn.Size = UDim2.new(1, -10, 0, 24)
+		btn.Size = UDim2.new(1, -10, 0, 26)
 		btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 		btn.BorderSizePixel = 0
 		btn.Text = p.DisplayName
@@ -158,43 +158,40 @@ local function refreshPlayerList()
 		Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
 
 		btn.MouseButton1Click:Connect(function()
-			spectateLabel.Text = "Spectating: " .. p.DisplayName
-			camera.CameraType = Enum.CameraType.Custom
 			if p.Character and p.Character:FindFirstChildOfClass("Humanoid") then
+				camera.CameraType = Enum.CameraType.Custom
 				camera.CameraSubject = p.Character:FindFirstChildOfClass("Humanoid")
+				spectateLabel.Text = "Spectating: " .. p.DisplayName
 			end
 		end)
 	end
-
 	playerScroll.CanvasSize = UDim2.new(0, 0, 0, playerListLayout.AbsoluteContentSize.Y + 8)
 end
 
--- Update player list on joins/leaves
 Players.PlayerAdded:Connect(refreshPlayerList)
 Players.PlayerRemoving:Connect(refreshPlayerList)
 
--- Toggle panel
+-- Smooth toggle
+local isPanelVisible = false
 plusBtn.MouseButton1Click:Connect(function()
-	playerPanel.Visible = not playerPanel.Visible
-	if playerPanel.Visible then
+	isPanelVisible = not isPanelVisible
+
+	if isPanelVisible then
+		playerPanel.Visible = true
 		refreshPlayerList()
+		TweenService:Create(playerPanel, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = UDim2.new(1, -180, 0, 0)
+		}):Play()
+	else
+		local tween = TweenService:Create(playerPanel, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Position = UDim2.new(1, 10, 0, 0)
+		})
+		tween:Play()
+		tween.Completed:Connect(function()
+			playerPanel.Visible = false
+		end)
 	end
 end)
 -------------------------------------------------------
 
--- Resize handle
-local resizeHandle = Instance.new("Frame")
-resizeHandle.Size = UDim2.new(0, 20, 0, 20)
-resizeHandle.Position = UDim2.new(1, -20, 1, -20)
-resizeHandle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-resizeHandle.BackgroundTransparency = 0.5
-resizeHandle.BorderSizePixel = 0
-resizeHandle.ZIndex = 2
-resizeHandle.Parent = mainFrame
-Instance.new("UICorner", resizeHandle).CornerRadius = UDim.new(0, 8)
-
--------------------------------------------------------
--- (The rest of your existing Chat Logger code remains unchanged)
--------------------------------------------------------
-
--- [Keep your logging, spectate, teleport, and chat hook code below this line]
+-- (Keep the rest of your Chat Logger script here unchanged)
