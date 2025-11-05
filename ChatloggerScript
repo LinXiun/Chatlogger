@@ -1,4 +1,4 @@
--- Chat Logger GUI (with player filtering)
+-- Chat Logger GUI (with player filtering on the left)
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
@@ -28,7 +28,7 @@ header.Size = UDim2.new(1, 0, 0, 28)
 header.BackgroundTransparency = 1
 header.Parent = mainFrame
 
--- 🔽 Title Dropdown
+-- 🔽 Title Button
 local titleBtn = Instance.new("TextButton")
 titleBtn.Size = UDim2.new(1, -140, 1, 0)
 titleBtn.Position = UDim2.new(0, 8, 0, 0)
@@ -40,10 +40,10 @@ titleBtn.TextSize = 16
 titleBtn.TextXAlignment = Enum.TextXAlignment.Left
 titleBtn.Parent = header
 
--- Dropdown container
+-- Dropdown container (Left side)
 local dropdownFrame = Instance.new("Frame")
-dropdownFrame.Size = UDim2.new(1, -20, 0, 160)
-dropdownFrame.Position = UDim2.new(0, 10, 0, 30)
+dropdownFrame.Size = UDim2.new(0, 120, 1, -36)
+dropdownFrame.Position = UDim2.new(0, 0, 0, 36)
 dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 dropdownFrame.Visible = false
 dropdownFrame.BorderSizePixel = 0
@@ -100,70 +100,10 @@ titleBtn.MouseButton1Click:Connect(function()
 	updateDropdown()
 end)
 
--- 🧭 Rest of UI (return, hide, spectate, scroll, etc.)
-local returnBtn = Instance.new("TextButton")
-returnBtn.Size = UDim2.new(0, 24, 0, 24)
-returnBtn.Position = UDim2.new(1, -60, 0, 2)
-returnBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-returnBtn.BorderSizePixel = 0
-returnBtn.Text = "⟳"
-returnBtn.Font = Enum.Font.SourceSansBold
-returnBtn.TextSize = 18
-returnBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
-returnBtn.Parent = header
-Instance.new("UICorner", returnBtn).CornerRadius = UDim.new(0, 6)
-
-local spectateLabel = Instance.new("TextLabel")
-spectateLabel.Size = UDim2.new(0, 160, 0, 20)
-spectateLabel.Position = UDim2.new(0, 110, 0, 4)
-spectateLabel.BackgroundTransparency = 1
-spectateLabel.Font = Enum.Font.SourceSansItalic
-spectateLabel.TextSize = 14
-spectateLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-spectateLabel.Text = ""
-spectateLabel.TextXAlignment = Enum.TextXAlignment.Left
-spectateLabel.Parent = header
-
-local hideBtn = Instance.new("TextButton")
-hideBtn.Size = UDim2.new(0, 20, 0, 20)
-hideBtn.Position = UDim2.new(1, -24, 0, 4)
-hideBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-hideBtn.BorderSizePixel = 0
-hideBtn.Text = "v"
-hideBtn.Font = Enum.Font.SourceSansBold
-hideBtn.TextSize = 14
-hideBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
-hideBtn.Parent = header
-Instance.new("UICorner", hideBtn).CornerRadius = UDim.new(0, 6)
-
-local unhideBtn = Instance.new("TextButton")
-unhideBtn.Size = UDim2.new(0, 30, 0, 30)
-unhideBtn.Position = UDim2.new(0, 10, 0, 10)
-unhideBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-unhideBtn.BorderSizePixel = 0
-unhideBtn.Text = "^"
-unhideBtn.Font = Enum.Font.SourceSansBold
-unhideBtn.TextSize = 18
-unhideBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
-unhideBtn.Visible = false
-unhideBtn.Active = true
-unhideBtn.Draggable = true
-unhideBtn.Parent = screenGui
-Instance.new("UICorner", unhideBtn).CornerRadius = UDim.new(0, 6)
-
-hideBtn.MouseButton1Click:Connect(function()
-	mainFrame.Visible = false
-	unhideBtn.Visible = true
-end)
-unhideBtn.MouseButton1Click:Connect(function()
-	mainFrame.Visible = true
-	unhideBtn.Visible = false
-end)
-
--- 📜 ScrollFrame for logs
+-- ScrollFrame for logs (shifted to right of dropdown)
 local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Size = UDim2.new(1, 0, 1, -36)
-scrollFrame.Position = UDim2.new(0, 0, 0, 36)
+scrollFrame.Size = UDim2.new(1, -130, 1, -36)
+scrollFrame.Position = UDim2.new(0, 130, 0, 36)
 scrollFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 scrollFrame.BackgroundTransparency = 0.5
 scrollFrame.BorderSizePixel = 0
@@ -177,7 +117,7 @@ layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Padding = UDim.new(0, 4)
 layout.Parent = scrollFrame
 
--- 🕓 Timestamp + log + filter logic
+-- Timestamp + log + filter logic
 local function formatTimestampUTCplus8()
 	local now = os.time()
 	local utc8 = os.date("!*t", now + 8 * 3600)
@@ -217,7 +157,7 @@ local function getColorForName(name)
 end
 
 local function logMessage(text, displayName, username)
-	-- 🔍 Filter check
+	-- Filter check
 	if next(selectedPlayers) ~= nil and not selectedPlayers[username] then
 		return
 	end
@@ -265,7 +205,7 @@ local function logMessage(text, displayName, username)
 	end)
 end
 
--- 📡 Chat hook
+-- Chat hook
 if TextChatService.MessageReceived then
 	TextChatService.MessageReceived:Connect(function(message)
 		if message.Text and message.TextSource then
