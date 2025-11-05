@@ -1,4 +1,3 @@
--- Chat logger with unique username colors, clickable spectate, UTC+8 timestamps, and Return to Me button
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
@@ -28,7 +27,7 @@ header.BackgroundTransparency = 1
 header.Parent = mainFrame
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -100, 1, 0)
+title.Size = UDim2.new(1, -140, 1, 0)
 title.Position = UDim2.new(0, 8, 0, 0)
 title.BackgroundTransparency = 1
 title.Text = "Chat Logger"
@@ -62,6 +61,45 @@ spectateLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 spectateLabel.Text = ""
 spectateLabel.TextXAlignment = Enum.TextXAlignment.Left
 spectateLabel.Parent = header
+
+-- Hide button "v"
+local hideBtn = Instance.new("TextButton")
+hideBtn.Size = UDim2.new(0, 20, 0, 20)
+hideBtn.Position = UDim2.new(1, -24, 0, 4)
+hideBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+hideBtn.BorderSizePixel = 0
+hideBtn.Text = "v"
+hideBtn.Font = Enum.Font.SourceSansBold
+hideBtn.TextSize = 14
+hideBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+hideBtn.Parent = header
+Instance.new("UICorner", hideBtn).CornerRadius = UDim.new(0, 6)
+
+-- Unhide button "^"
+local unhideBtn = Instance.new("TextButton")
+unhideBtn.Size = UDim2.new(0, 30, 0, 30)
+unhideBtn.Position = UDim2.new(0, 10, 0, 10)
+unhideBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+unhideBtn.BorderSizePixel = 0
+unhideBtn.Text = "^"
+unhideBtn.Font = Enum.Font.SourceSansBold
+unhideBtn.TextSize = 18
+unhideBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+unhideBtn.Visible = false
+unhideBtn.Active = true
+unhideBtn.Draggable = true
+unhideBtn.Parent = screenGui
+Instance.new("UICorner", unhideBtn).CornerRadius = UDim.new(0, 6)
+
+-- Hide/unhide logic
+hideBtn.MouseButton1Click:Connect(function()
+	mainFrame.Visible = false
+	unhideBtn.Visible = true
+end)
+unhideBtn.MouseButton1Click:Connect(function()
+	mainFrame.Visible = true
+	unhideBtn.Visible = false
+end)
 
 -- Resize handle
 local resizeHandle = Instance.new("Frame")
@@ -284,4 +322,15 @@ player.CharacterAdded:Connect(function()
 		camera.CameraSubject = humanoid
 		spectateLabel.Text = ""
 	end
+	-- Restore saved position/size
+	mainFrame.Position = savedPos
+	mainFrame.Size = savedSize
+end)
+
+-- Track position changes to save them
+mainFrame:GetPropertyChangedSignal("Position"):Connect(function()
+	savedPos = mainFrame.Position
+end)
+mainFrame:GetPropertyChangedSignal("Size"):Connect(function()
+	savedSize = mainFrame.Size
 end)
