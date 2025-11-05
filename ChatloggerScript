@@ -1,7 +1,9 @@
--- Chat Logger with DisplayName Support, Spectate Fix, Manual Scroll, and New Message Indicator
+-- Chat Logger with DisplayName Support, Spectate Fix, Manual Scroll,
+-- and Animated Bottom-Middle New Message Indicator
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
@@ -38,7 +40,7 @@ title.TextSize = 16
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = header
 
--- Return button (icon)
+-- Return button
 local returnBtn = Instance.new("TextButton")
 returnBtn.Size = UDim2.new(0, 24, 0, 24)
 returnBtn.Position = UDim2.new(1, -60, 0, 2)
@@ -63,7 +65,7 @@ spectateLabel.Text = ""
 spectateLabel.TextXAlignment = Enum.TextXAlignment.Left
 spectateLabel.Parent = header
 
--- Hide button "v"
+-- Hide button
 local hideBtn = Instance.new("TextButton")
 hideBtn.Size = UDim2.new(0, 20, 0, 20)
 hideBtn.Position = UDim2.new(1, -24, 0, 4)
@@ -76,7 +78,7 @@ hideBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
 hideBtn.Parent = header
 Instance.new("UICorner", hideBtn).CornerRadius = UDim.new(0, 6)
 
--- Unhide button "^"
+-- Unhide button
 local unhideBtn = Instance.new("TextButton")
 unhideBtn.Size = UDim2.new(0, 30, 0, 30)
 unhideBtn.Position = UDim2.new(0, 10, 0, 10)
@@ -128,10 +130,11 @@ layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Padding = UDim.new(0, 6)
 layout.Parent = scrollFrame
 
--- New message indicator
+-- New message indicator (bottom center)
 local newMsgBtn = Instance.new("TextButton")
-newMsgBtn.Size = UDim2.new(0, 160, 0, 24)
-newMsgBtn.Position = UDim2.new(1, -170, 1, -30)
+newMsgBtn.Size = UDim2.new(0, 160, 0, 26)
+newMsgBtn.AnchorPoint = Vector2.new(0.5, 1)
+newMsgBtn.Position = UDim2.new(0.5, 0, 1, -6)
 newMsgBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 newMsgBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 newMsgBtn.Font = Enum.Font.SourceSansBold
@@ -142,11 +145,23 @@ newMsgBtn.Visible = false
 newMsgBtn.Parent = mainFrame
 Instance.new("UICorner", newMsgBtn).CornerRadius = UDim.new(0, 6)
 
+-- Animation logic
+local fadeInTween = TweenService:Create(newMsgBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0, TextTransparency = 0})
+local fadeOutTween = TweenService:Create(newMsgBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1, TextTransparency = 1})
+
 local function showNewMsgButton()
-	newMsgBtn.Visible = true
+	if not newMsgBtn.Visible then
+		newMsgBtn.Visible = true
+		fadeInTween:Play()
+	end
 end
 local function hideNewMsgButton()
-	newMsgBtn.Visible = false
+	if newMsgBtn.Visible then
+		fadeOutTween:Play()
+		task.delay(0.25, function()
+			newMsgBtn.Visible = false
+		end)
+	end
 end
 
 newMsgBtn.MouseButton1Click:Connect(function()
@@ -162,7 +177,7 @@ scrollFrame:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
 	end
 end)
 
--- Helper functions
+-- Utility functions
 local function formatTimestampUTCplus8()
 	local now = os.time()
 	local utc8 = os.date("!*t", now + 8 * 3600)
@@ -233,7 +248,7 @@ end
 
 returnBtn.MouseButton1Click:Connect(returnToLocal)
 
--- Log messages
+-- Log chat messages
 local function logMessage(text, displayName, username)
 	local entry = Instance.new("Frame")
 	entry.Size = UDim2.new(1, -10, 0, 0)
