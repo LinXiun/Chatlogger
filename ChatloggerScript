@@ -20,10 +20,7 @@ mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = true
 mainFrame.Parent = screenGui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = mainFrame
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
 
 local header = Instance.new("Frame")
 header.Size = UDim2.new(1, 0, 0, 28)
@@ -223,7 +220,6 @@ local function logMessage(text, authorName)
 	nameBtn.TextXAlignment = Enum.TextXAlignment.Left
 	nameBtn.TextColor3 = getColorForName(authorName)
 	nameBtn.AutomaticSize = Enum.AutomaticSize.Y
-
 	nameBtn.MouseButton1Click:Connect(function()
 		spectatePlayer(authorName)
 	end)
@@ -253,31 +249,31 @@ local function logMessage(text, authorName)
 	end)
 end
 
--- Listen to TextChatService (new chat system)
+-- Prefer new chat system; fallback to legacy only if needed
 if TextChatService.MessageReceived then
 	TextChatService.MessageReceived:Connect(function(message)
 		if message.Text and message.TextSource then
-			local author = tostring(message.TextSource.Name)
-			if message.TextSource.UserId then
-				local p = Players:GetPlayerByUserId(message.TextSource.UserId)
+			local author = message.TextSource.Name
+			local userId = message.TextSource.UserId
+			if userId then
+				local p = Players:GetPlayerByUserId(userId)
 				if p then author = p.Name end
 			end
 			logMessage(message.Text, author)
 		end
 	end)
-end
-
--- Fallback: legacy chat system
-for _, p in ipairs(Players:GetPlayers()) do
-	p.Chatted:Connect(function(msg)
-		logMessage(msg, p.Name)
+else
+	for _, p in ipairs(Players:GetPlayers()) do
+		p.Chatted:Connect(function(msg)
+			logMessage(msg, p.Name)
+		end)
+	end
+	Players.PlayerAdded:Connect(function(p)
+		p.Chatted:Connect(function(msg)
+			logMessage(msg, p.Name)
+		end)
 	end)
 end
-Players.PlayerAdded:Connect(function(p)
-	p.Chatted:Connect(function(msg)
-		logMessage(msg, p.Name)
-	end)
-end)
 
 -- Restore camera to local player when respawning
 player.CharacterAdded:Connect(function()
