@@ -1,4 +1,4 @@
--- Full Chat Logger LocalScript (logging restored)
+-- Chat Logger LocalScript (TextChatService + fallback to Player.Chatted)
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
@@ -11,8 +11,8 @@ screenGui.Name = "ChatLoggerGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Main frame
-local mainFrame = Instance.new("Frame")
+-- Main frame (kept compact here; unchanged from previous)
+local mainFrame = Instance.new("Frame", screenGui)
 mainFrame.Size = UDim2.new(0, 420, 0, 360)
 mainFrame.Position = UDim2.new(0, 10, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -20,18 +20,13 @@ mainFrame.BackgroundTransparency = 0.5
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = true
-mainFrame.Parent = screenGui
-
 local mainCorner = Instance.new("UICorner", mainFrame)
 mainCorner.CornerRadius = UDim.new(0, 8)
 
--- Header with title, spectate indicator, and return button
-local header = Instance.new("Frame")
+-- Header
+local header = Instance.new("Frame", mainFrame)
 header.Size = UDim2.new(1, 0, 0, 28)
-header.Position = UDim2.new(0, 0, 0, 0)
 header.BackgroundTransparency = 1
-header.Parent = mainFrame
-
 local title = Instance.new("TextLabel", header)
 title.Size = UDim2.new(1, -120, 1, 0)
 title.Position = UDim2.new(0, 8, 0, 0)
@@ -64,7 +59,7 @@ returnBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
 local returnCorner = Instance.new("UICorner", returnBtn)
 returnCorner.CornerRadius = UDim.new(0, 6)
 
--- Resize handle (corner)
+-- Resize handle
 local resizeHandle = Instance.new("Frame", mainFrame)
 resizeHandle.Size = UDim2.new(0, 20, 0, 20)
 resizeHandle.Position = UDim2.new(1, -20, 1, -20)
@@ -76,30 +71,28 @@ resizeHandle.ZIndex = 999
 local resizeCorner = Instance.new("UICorner", resizeHandle)
 resizeCorner.CornerRadius = UDim.new(0, 8)
 
--- Scrolling frame
+-- Scrolling frame and layout
 local scrollFrame = Instance.new("ScrollingFrame", mainFrame)
 scrollFrame.Size = UDim2.new(1, 0, 1, -36)
 scrollFrame.Position = UDim2.new(0, 0, 0, 36)
-scrollFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 scrollFrame.BackgroundTransparency = 0.5
+scrollFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 scrollFrame.BorderSizePixel = 0
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollFrame.CanvasSize = UDim2.new(0,0,0,0)
 scrollFrame.ScrollBarThickness = 6
 local scrollCorner = Instance.new("UICorner", scrollFrame)
-scrollCorner.CornerRadius = UDim.new(0, 8)
-
+scrollCorner.CornerRadius = UDim.new(0,8)
 local layout = Instance.new("UIListLayout", scrollFrame)
 layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Padding = UDim.new(0, 6)
+layout.Padding = UDim.new(0,6)
 
--- Utility: UTC+8 timestamp
+-- Utilities (timestamps, colors)
 local function formatTimestampUTCplus8()
 	local now = os.time()
 	local utc8 = os.date("!*t", now + 8 * 3600)
 	return string.format("%02d:%02d:%02d", utc8.hour, utc8.min, utc8.sec)
 end
 
--- Deterministic username color: hash -> hue -> HSL -> RGB
 local function hashString(s)
 	local h = 0
 	for i = 1, #s do
@@ -117,17 +110,13 @@ local function hslToRgb(h, s, l)
 		if t < 2/3 then return p + (q - p) * (2/3 - t) * 6 end
 		return p
 	end
-	local r, g, b
-	if s == 0 then
-		r, g, b = l, l, l
-	else
-		local q = l < 0.5 and l * (1 + s) or l + s - l * s
-		local p = 2 * l - q
-		r = hue2rgb(p, q, h + 1/3)
-		g = hue2rgb(p, q, h)
-		b = hue2rgb(p, q, h - 1/3)
-	end
-	return Color3.new(r, g, b)
+	if s == 0 then return Color3.new(l,l,l) end
+	local q = l < 0.5 and l * (1 + s) or l + s - l * s
+	local p = 2 * l - q
+	local r = hue2rgb(p,q,h + 1/3)
+	local g = hue2rgb(p,q,h)
+	local b = hue2rgb(p,q,h - 1/3)
+	return Color3.new(r,g,b)
 end
 
 local usernameColorCache = {}
@@ -135,14 +124,12 @@ local function getColorForName(name)
 	if usernameColorCache[name] then return usernameColorCache[name] end
 	local hval = hashString(name)
 	local hue = (hval % 360) / 360
-	local sat = 0.56
-	local light = 0.52
-	local color = hslToRgb(hue, sat, light)
+	local color = hslToRgb(hue, 0.56, 0.52)
 	usernameColorCache[name] = color
 	return color
 end
 
--- Spectate function
+-- Spectate and return functions
 local function spectatePlayer(targetName)
 	local target = Players:FindFirstChild(targetName)
 	if not target or not target.Character then return end
@@ -156,7 +143,6 @@ local function spectatePlayer(targetName)
 	end
 end
 
--- Return camera to local player
 local function returnToLocal()
 	local char = player.Character
 	if not char then return end
@@ -169,21 +155,16 @@ local function returnToLocal()
 		end)
 	end
 end
-
 returnBtn.MouseButton1Click:Connect(returnToLocal)
 
--- Robust resize logic (works with mouse and touch)
+-- Resize logic (robust)
 resizeHandle.Active = true
 resizeHandle.InputTransparency = 0
-
 local resizing = false
 local startMousePos = Vector2.new()
 local startSize = Vector2.new()
 local minWidth, minHeight = 240, 140
-
-local function stopResizing()
-	resizing = false
-end
+local function stopResizing() resizing = false end
 
 resizeHandle.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -191,33 +172,26 @@ resizeHandle.InputBegan:Connect(function(input)
 		startMousePos = UserInputService:GetMouseLocation()
 		startSize = Vector2.new(mainFrame.AbsoluteSize.X, mainFrame.AbsoluteSize.Y)
 		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				stopResizing()
-			end
+			if input.UserInputState == Enum.UserInputState.End then stopResizing() end
 		end)
 	end
 end)
-
 UserInputService.InputChanged:Connect(function(input)
 	if not resizing then return end
 	if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then return end
-
 	local current = UserInputService:GetMouseLocation()
 	local delta = current - startMousePos
 	local newX = math.max(minWidth, math.floor(startSize.X + delta.X + 0.5))
 	local newY = math.max(minHeight, math.floor(startSize.Y + delta.Y + 0.5))
-
 	mainFrame.Size = UDim2.new(0, newX, 0, newY)
 end)
-
 UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		stopResizing()
-	end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then stopResizing() end
 end)
 
--- Logging function: clickable username and message
+-- Logging function
 local function logMessage(text, authorName)
+	if not text or text == "" then return end
 	local entry = Instance.new("Frame")
 	entry.Size = UDim2.new(1, -10, 0, 0)
 	entry.BackgroundTransparency = 1
@@ -253,10 +227,7 @@ local function logMessage(text, authorName)
 	nameBtn.TextXAlignment = Enum.TextXAlignment.Left
 	nameBtn.AutomaticSize = Enum.AutomaticSize.Y
 	nameBtn.TextColor3 = getColorForName(authorName)
-
-	nameBtn.MouseButton1Click:Connect(function()
-		spectatePlayer(authorName)
-	end)
+	nameBtn.MouseButton1Click:Connect(function() spectatePlayer(authorName) end)
 
 	local msgLabel = Instance.new("TextLabel", entry)
 	msgLabel.Size = UDim2.new(1, -200, 0, 0)
@@ -277,27 +248,48 @@ local function logMessage(text, authorName)
 	sep.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 	sep.BorderSizePixel = 0
 
-	-- update canvas after layout settles
 	task.defer(function()
 		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
 		scrollFrame.CanvasPosition = Vector2.new(0, math.max(0, layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y))
 	end)
 end
 
--- Map incoming TextChatService messages to logger (use Connect to ensure event fires)
-TextChatService.OnIncomingMessage:Connect(function(message)
+-- Helper: invoke the same logger for TextChatService (modern) and Player.Chatted (legacy)
+local function handleTextChatMessage(message)
 	if not message then return end
-	-- message.Text and message.TextSource should exist for normal chat messages
 	if message.Text and message.TextSource then
 		local author = tostring(message.TextSource.Name)
-		-- Prefer mapping by UserId to canonical Player.Name when available
-		if message.TextSource and message.TextSource.UserId and message.TextSource.UserId > 0 then
+		if message.TextSource.UserId and message.TextSource.UserId > 0 then
 			local p = Players:GetPlayerByUserId(message.TextSource.UserId)
 			if p then author = p.Name end
 		end
 		logMessage(message.Text, author)
 	end
-end)
+end
+
+-- Modern TextChatService listener (connect safely)
+if TextChatService and TextChatService.OnIncomingMessage then
+	local ok, err = pcall(function()
+		TextChatService.OnIncomingMessage:Connect(handleTextChatMessage)
+	end)
+	-- ignore errors; fallback listeners below will still catch messages
+end
+
+-- Legacy fallback: Player.Chatted for existing players and future players
+local function connectPlayerChatted(p)
+	if not p then return end
+	p.Chatted:Connect(function(msg)
+		-- p.Name is canonical username
+		logMessage(msg, p.Name)
+	end)
+end
+
+-- connect current players
+for _, p in ipairs(Players:GetPlayers()) do
+	connectPlayerChatted(p)
+end
+-- connect future players
+Players.PlayerAdded:Connect(connectPlayerChatted)
 
 -- Restore camera to local player when respawning
 player.CharacterAdded:Connect(function()
