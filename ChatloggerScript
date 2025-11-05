@@ -1,4 +1,4 @@
--- Chat Logger GUI (DisplayName, 12hr format, Spectate safe, Manual scroll, Bottom indicator, Compact, Click-to-copy)
+-- Chat Logger GUI (DisplayName, 12hr format, Spectate safe, Manual scroll, Bottom indicator, Compact, Click-to-copy, Player Panel with Slide Animation)
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
@@ -23,13 +23,14 @@ mainFrame.Draggable = true
 mainFrame.Parent = screenGui
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
 
+-- Header
 local header = Instance.new("Frame")
 header.Size = UDim2.new(1, 0, 0, 28)
 header.BackgroundTransparency = 1
 header.Parent = mainFrame
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -140, 1, 0)
+title.Size = UDim2.new(1, -180, 1, 0)
 title.Position = UDim2.new(0, 8, 0, 0)
 title.BackgroundTransparency = 1
 title.Text = "Chat Logger"
@@ -39,7 +40,20 @@ title.TextSize = 16
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = header
 
--- Return button
+-- ➕ Player List Button
+local plusBtn = Instance.new("TextButton")
+plusBtn.Size = UDim2.new(0, 24, 0, 24)
+plusBtn.Position = UDim2.new(1, -90, 0, 2)
+plusBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+plusBtn.BorderSizePixel = 0
+plusBtn.Text = "+"
+plusBtn.Font = Enum.Font.SourceSansBold
+plusBtn.TextSize = 18
+plusBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+plusBtn.Parent = header
+Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 6)
+
+-- Return button (⟳)
 local returnBtn = Instance.new("TextButton")
 returnBtn.Size = UDim2.new(0, 24, 0, 24)
 returnBtn.Position = UDim2.new(1, -60, 0, 2)
@@ -52,20 +66,10 @@ returnBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
 returnBtn.Parent = header
 Instance.new("UICorner", returnBtn).CornerRadius = UDim.new(0, 6)
 
-local spectateLabel = Instance.new("TextLabel")
-spectateLabel.Size = UDim2.new(0, 160, 0, 20)
-spectateLabel.Position = UDim2.new(0, 110, 0, 4)
-spectateLabel.BackgroundTransparency = 1
-spectateLabel.Font = Enum.Font.SourceSansItalic
-spectateLabel.TextSize = 14
-spectateLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-spectateLabel.Text = ""
-spectateLabel.TextXAlignment = Enum.TextXAlignment.Left
-spectateLabel.Parent = header
-
+-- Hide button (v)
 local hideBtn = Instance.new("TextButton")
 hideBtn.Size = UDim2.new(0, 20, 0, 20)
-hideBtn.Position = UDim2.new(1, -24, 0, 4)
+hideBtn.Position = UDim2.new(1, -30, 0, 4)
 hideBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 hideBtn.BorderSizePixel = 0
 hideBtn.Text = "v"
@@ -75,6 +79,19 @@ hideBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
 hideBtn.Parent = header
 Instance.new("UICorner", hideBtn).CornerRadius = UDim.new(0, 6)
 
+-- Spectate Label
+local spectateLabel = Instance.new("TextLabel")
+spectateLabel.Size = UDim2.new(0, 160, 0, 20)
+spectateLabel.Position = UDim2.new(0, 140, 0, 4)
+spectateLabel.BackgroundTransparency = 1
+spectateLabel.Font = Enum.Font.SourceSansItalic
+spectateLabel.TextSize = 14
+spectateLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+spectateLabel.Text = ""
+spectateLabel.TextXAlignment = Enum.TextXAlignment.Left
+spectateLabel.Parent = header
+
+-- Unhide button
 local unhideBtn = Instance.new("TextButton")
 unhideBtn.Size = UDim2.new(0, 30, 0, 30)
 unhideBtn.Position = UDim2.new(0, 10, 0, 10)
@@ -99,16 +116,126 @@ unhideBtn.MouseButton1Click:Connect(function()
 	unhideBtn.Visible = false
 end)
 
-local resizeHandle = Instance.new("Frame")
-resizeHandle.Size = UDim2.new(0, 20, 0, 20)
-resizeHandle.Position = UDim2.new(1, -20, 1, -20)
-resizeHandle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-resizeHandle.BackgroundTransparency = 0.5
-resizeHandle.BorderSizePixel = 0
-resizeHandle.ZIndex = 2
-resizeHandle.Parent = mainFrame
-Instance.new("UICorner", resizeHandle).CornerRadius = UDim.new(0, 8)
+-- === Player Panel ===
+local playerPanel = Instance.new("Frame")
+playerPanel.Size = UDim2.new(0, 160, 1, 0)
+playerPanel.Position = UDim2.new(1, 10, 0, 0)
+playerPanel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+playerPanel.BorderSizePixel = 0
+playerPanel.Visible = false
+playerPanel.Parent = mainFrame
+Instance.new("UICorner", playerPanel).CornerRadius = UDim.new(0, 8)
 
+local playerScroll = Instance.new("ScrollingFrame")
+playerScroll.Size = UDim2.new(1, -10, 1, -10)
+playerScroll.Position = UDim2.new(0, 5, 0, 5)
+playerScroll.BackgroundTransparency = 1
+playerScroll.ScrollBarThickness = 6
+playerScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+playerScroll.Parent = playerPanel
+
+local playerLayout = Instance.new("UIListLayout")
+playerLayout.Padding = UDim.new(0, 4)
+playerLayout.SortOrder = Enum.SortOrder.Name
+playerLayout.Parent = playerScroll
+
+-- Slide animation setup
+local panelTweenIn = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local panelTweenOut = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+
+local panelVisible = false
+plusBtn.MouseButton1Click:Connect(function()
+	panelVisible = not panelVisible
+	if panelVisible then
+		playerPanel.Visible = true
+		TweenService:Create(playerPanel, panelTweenIn, {Position = UDim2.new(1, -170, 0, 0)}):Play()
+	else
+		local tween = TweenService:Create(playerPanel, panelTweenOut, {Position = UDim2.new(1, 10, 0, 0)})
+		tween:Play()
+		tween.Completed:Connect(function()
+			playerPanel.Visible = false
+		end)
+	end
+end)
+
+-- Update player list
+local function updatePlayerList()
+	for _, child in ipairs(playerScroll:GetChildren()) do
+		if child:IsA("TextButton") then child:Destroy() end
+	end
+
+	for _, p in ipairs(Players:GetPlayers()) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, -6, 0, 24)
+		btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		btn.TextColor3 = Color3.fromRGB(230, 230, 230)
+		btn.TextSize = 16
+		btn.Font = Enum.Font.SourceSansBold
+		btn.Text = p.DisplayName
+		btn.BorderSizePixel = 0
+		btn.Parent = playerScroll
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+		btn.MouseButton1Click:Connect(function()
+			if p.Character and p.Character:FindFirstChildOfClass("Humanoid") then
+				camera.CameraType = Enum.CameraType.Custom
+				camera.CameraSubject = p.Character:FindFirstChildOfClass("Humanoid")
+				spectateLabel.Text = "Spectating: " .. p.DisplayName
+			end
+		end)
+	end
+
+	playerScroll.CanvasSize = UDim2.new(0, 0, 0, playerLayout.AbsoluteContentSize.Y + 8)
+end
+
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
+playerLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updatePlayerList)
+updatePlayerList()
+
+-- === Return to self ===
+local function returnToLocal()
+	local char = player.Character
+	if not char then return end
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		camera.CameraType = Enum.CameraType.Custom
+		camera.CameraSubject = humanoid
+		spectateLabel.Text = ""
+	end
+end
+returnBtn.MouseButton1Click:Connect(returnToLocal)
+
+-- === Teleport ===
+local function teleportToPlayer(targetName)
+	local target = Players:FindFirstChild(targetName)
+	if not target or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then return end
+	local targetHRP = target.Character.HumanoidRootPart
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hrp = char:WaitForChild("HumanoidRootPart", 2)
+	if not hrp then return end
+
+	hrp.CFrame = CFrame.new(targetHRP.Position + Vector3.new(0, 4, 0))
+
+	local flash = Instance.new("Frame")
+	flash.Size = UDim2.new(1, 0, 1, 0)
+	flash.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+	flash.BackgroundTransparency = 0.5
+	flash.BorderSizePixel = 0
+	flash.ZIndex = 999
+	flash.Parent = screenGui
+	TweenService:Create(flash, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
+	task.delay(0.5, function() flash:Destroy() end)
+
+	local sound = Instance.new("Sound")
+	sound.SoundId = "rbxassetid://9118823101"
+	sound.Volume = 1
+	sound.Parent = hrp
+	sound:Play()
+	game.Debris:AddItem(sound, 2)
+end
+
+-- === Message Logger ===
 local scrollFrame = Instance.new("ScrollingFrame")
 scrollFrame.Size = UDim2.new(1, 0, 1, -36)
 scrollFrame.Position = UDim2.new(0, 0, 0, 36)
@@ -125,46 +252,7 @@ layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Padding = UDim.new(0, 4)
 layout.Parent = scrollFrame
 
--- New messages indicator
-local newMsgBtn = Instance.new("TextButton")
-newMsgBtn.Size = UDim2.new(0, 160, 0, 26)
-newMsgBtn.AnchorPoint = Vector2.new(0.5, 1)
-newMsgBtn.Position = UDim2.new(0.5, 0, 1, -6)
-newMsgBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-newMsgBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-newMsgBtn.Font = Enum.Font.SourceSansBold
-newMsgBtn.TextSize = 14
-newMsgBtn.Text = "New messages below ↓"
-newMsgBtn.BorderSizePixel = 0
-newMsgBtn.Visible = false
-newMsgBtn.Parent = mainFrame
-Instance.new("UICorner", newMsgBtn).CornerRadius = UDim.new(0, 6)
-
-local fadeInTween = TweenService:Create(newMsgBtn, TweenInfo.new(0.25), {BackgroundTransparency = 0, TextTransparency = 0})
-local fadeOutTween = TweenService:Create(newMsgBtn, TweenInfo.new(0.25), {BackgroundTransparency = 1, TextTransparency = 1})
-
-local function showNewMsgButton()
-	if not newMsgBtn.Visible then
-		newMsgBtn.Visible = true
-		fadeInTween:Play()
-	end
-end
-local function hideNewMsgButton()
-	if newMsgBtn.Visible then
-		fadeOutTween:Play()
-		task.delay(0.25, function() newMsgBtn.Visible = false end)
-	end
-end
-newMsgBtn.MouseButton1Click:Connect(function()
-	scrollFrame.CanvasPosition = Vector2.new(0, math.max(0, layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y))
-	hideNewMsgButton()
-end)
-scrollFrame:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-	local bottomThreshold = layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y - 20
-	if scrollFrame.CanvasPosition.Y >= bottomThreshold then hideNewMsgButton() end
-end)
-
--- Timestamp (12-hour format)
+-- Timestamp helper
 local function formatTimestampUTCplus8()
 	local now = os.time()
 	local utc8 = os.date("!*t", now + 8 * 3600)
@@ -213,49 +301,8 @@ local function spectatePlayer(targetName)
 		spectateLabel.Text = "Spectating: " .. target.DisplayName
 	end
 end
-local function returnToLocal()
-	local char = player.Character
-	if not char then return end
-	local humanoid = char:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		camera.CameraType = Enum.CameraType.Custom
-		camera.CameraSubject = humanoid
-		spectateLabel.Text = ""
-	end
-end
-returnBtn.MouseButton1Click:Connect(returnToLocal)
 
--- 🔮 Teleport (with effect)
-local function teleportToPlayer(targetName)
-	local target = Players:FindFirstChild(targetName)
-	if not target or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then return end
-	local targetHRP = target.Character.HumanoidRootPart
-	local char = player.Character or player.CharacterAdded:Wait()
-	local hrp = char:WaitForChild("HumanoidRootPart", 2)
-	if not hrp then return end
-
-	hrp.CFrame = CFrame.new(targetHRP.Position + Vector3.new(0, 4, 0))
-
-	-- Visual + Sound effect
-	local flash = Instance.new("Frame")
-	flash.Size = UDim2.new(1, 0, 1, 0)
-	flash.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-	flash.BackgroundTransparency = 0.5
-	flash.BorderSizePixel = 0
-	flash.ZIndex = 999
-	flash.Parent = screenGui
-	TweenService:Create(flash, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
-	task.delay(0.5, function() flash:Destroy() end)
-
-	local sound = Instance.new("Sound")
-	sound.SoundId = "rbxassetid://9118823101" -- soft teleport woosh
-	sound.Volume = 1
-	sound.Parent = hrp
-	sound:Play()
-	game.Debris:AddItem(sound, 2)
-end
-
--- Log messages
+-- Log message
 local function logMessage(text, displayName, username)
 	local entry = Instance.new("Frame")
 	entry.Size = UDim2.new(1, -10, 0, 0)
@@ -284,7 +331,6 @@ local function logMessage(text, displayName, username)
 	nameBtn.TextColor3 = getColorForName(username)
 	nameBtn.AutomaticSize = Enum.AutomaticSize.Y
 
-	-- 🖱️ Triple tap logic
 	local clickCount, lastClickTime = 0, 0
 	nameBtn.MouseButton1Click:Connect(function()
 		local now = tick()
@@ -321,16 +367,6 @@ local function logMessage(text, displayName, username)
 			setclipboard(text)
 			msgBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
 			task.delay(0.5, function() msgBtn.TextColor3 = Color3.fromRGB(220, 220, 220) end)
-		end
-	end)
-
-	task.defer(function()
-		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
-		local nearBottom = scrollFrame.CanvasPosition.Y >= layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y - 40
-		if nearBottom then
-			scrollFrame.CanvasPosition = Vector2.new(0, math.max(0, layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y))
-		else
-			showNewMsgButton()
 		end
 	end)
 end
