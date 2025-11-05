@@ -1,3 +1,4 @@
+-- Chat Logger with DisplayName Support and Spectate System (Updated)
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
@@ -206,7 +207,7 @@ local function spectatePlayer(targetName)
 	if humanoid then
 		camera.CameraType = Enum.CameraType.Custom
 		camera.CameraSubject = humanoid
-		spectateLabel.Text = "Spectating: " .. targetName
+		spectateLabel.Text = "Spectating: " .. target.DisplayName
 	end
 end
 
@@ -224,7 +225,7 @@ end
 returnBtn.MouseButton1Click:Connect(returnToLocal)
 
 -- Log messages
-local function logMessage(text, authorName)
+local function logMessage(text, displayName, username)
 	local entry = Instance.new("Frame")
 	entry.Size = UDim2.new(1, -10, 0, 0)
 	entry.BackgroundTransparency = 1
@@ -245,7 +246,6 @@ local function logMessage(text, authorName)
 	tsLabel.Text = formatTimestampUTCplus8()
 	tsLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 	tsLabel.TextXAlignment = Enum.TextXAlignment.Left
-	tsLabel.TextYAlignment = Enum.TextYAlignment.Center
 
 	local nameBtn = Instance.new("TextButton", entry)
 	nameBtn.Size = UDim2.new(0, 120, 0, 0)
@@ -254,12 +254,12 @@ local function logMessage(text, authorName)
 	nameBtn.AutoButtonColor = false
 	nameBtn.Font = Enum.Font.SourceSansBold
 	nameBtn.TextSize = 18
-	nameBtn.Text = authorName
+	nameBtn.Text = displayName
 	nameBtn.TextXAlignment = Enum.TextXAlignment.Left
-	nameBtn.TextColor3 = getColorForName(authorName)
+	nameBtn.TextColor3 = getColorForName(username)
 	nameBtn.AutomaticSize = Enum.AutomaticSize.Y
 	nameBtn.MouseButton1Click:Connect(function()
-		spectatePlayer(authorName)
+		spectatePlayer(username)
 	end)
 
 	local msgLabel = Instance.new("TextLabel", entry)
@@ -291,29 +291,33 @@ end
 if TextChatService.MessageReceived then
 	TextChatService.MessageReceived:Connect(function(message)
 		if message.Text and message.TextSource then
-			local author = message.TextSource.Name
 			local userId = message.TextSource.UserId
+			local displayName, username = "[Unknown]", "[Unknown]"
 			if userId then
 				local p = Players:GetPlayerByUserId(userId)
-				if p then author = p.Name end
+				if p then
+					displayName = p.DisplayName
+					username = p.Name
+				end
 			end
-			logMessage(message.Text, author)
+			logMessage(message.Text, displayName, username)
 		end
 	end)
 else
 	for _, p in ipairs(Players:GetPlayers()) do
 		p.Chatted:Connect(function(msg)
-			logMessage(msg, p.Name)
+			logMessage(msg, p.DisplayName, p.Name)
 		end)
 	end
 	Players.PlayerAdded:Connect(function(p)
 		p.Chatted:Connect(function(msg)
-			logMessage(msg, p.Name)
+			logMessage(msg, p.DisplayName, p.Name)
 		end)
 	end)
 end
 
 -- Restore camera to local player when respawning
+local savedPos, savedSize
 player.CharacterAdded:Connect(function()
 	task.wait(0.1)
 	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
@@ -323,11 +327,11 @@ player.CharacterAdded:Connect(function()
 		spectateLabel.Text = ""
 	end
 	-- Restore saved position/size
-	mainFrame.Position = savedPos
-	mainFrame.Size = savedSize
+	if savedPos then mainFrame.Position = savedPos end
+	if savedSize then mainFrame.Size = savedSize end
 end)
 
--- Track position changes to save them
+-- Track position/size changes to save them
 mainFrame:GetPropertyChangedSignal("Position"):Connect(function()
 	savedPos = mainFrame.Position
 end)
