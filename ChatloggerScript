@@ -1,4 +1,4 @@
--- Full Chat Logger LocalScript
+-- Full Chat Logger LocalScript (logging restored)
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
@@ -190,7 +190,6 @@ resizeHandle.InputBegan:Connect(function(input)
 		resizing = true
 		startMousePos = UserInputService:GetMouseLocation()
 		startSize = Vector2.new(mainFrame.AbsoluteSize.X, mainFrame.AbsoluteSize.Y)
-		-- If the input ends, stop resizing
 		input.Changed:Connect(function()
 			if input.UserInputState == Enum.UserInputState.End then
 				stopResizing()
@@ -285,17 +284,20 @@ local function logMessage(text, authorName)
 	end)
 end
 
--- Map incoming TextChatService messages to logger
-TextChatService.OnIncomingMessage = function(message)
+-- Map incoming TextChatService messages to logger (use Connect to ensure event fires)
+TextChatService.OnIncomingMessage:Connect(function(message)
+	if not message then return end
+	-- message.Text and message.TextSource should exist for normal chat messages
 	if message.Text and message.TextSource then
 		local author = tostring(message.TextSource.Name)
-		if message.TextSource and message.TextSource.UserId then
+		-- Prefer mapping by UserId to canonical Player.Name when available
+		if message.TextSource and message.TextSource.UserId and message.TextSource.UserId > 0 then
 			local p = Players:GetPlayerByUserId(message.TextSource.UserId)
 			if p then author = p.Name end
 		end
 		logMessage(message.Text, author)
 	end
-end
+end)
 
 -- Restore camera to local player when respawning
 player.CharacterAdded:Connect(function()
