@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
+local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 
 -- Create GUI
@@ -8,15 +9,36 @@ screenGui.Name = "ChatLoggerGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Create ScrollingFrame
+-- Main container
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 400, 0, 320)
+mainFrame.Position = UDim2.new(0, 10, 0, 10)
+mainFrame.BackgroundTransparency = 1
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+-- Resize handle
+local resizeHandle = Instance.new("Frame")
+resizeHandle.Size = UDim2.new(0, 20, 0, 20)
+resizeHandle.Position = UDim2.new(1, -20, 1, -20)
+resizeHandle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+resizeHandle.BackgroundTransparency = 0.8
+resizeHandle.BorderSizePixel = 0
+resizeHandle.AnchorPoint = Vector2.new(0, 0)
+resizeHandle.ZIndex = 2
+resizeHandle.Parent = mainFrame
+
+-- ScrollingFrame
 local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Size = UDim2.new(0, 400, 0, 300)
-scrollFrame.Position = UDim2.new(0, 10, 0, 10)
+scrollFrame.Size = UDim2.new(1, 0, 1, -20)
+scrollFrame.Position = UDim2.new(0, 0, 0, 20)
 scrollFrame.BackgroundTransparency = 1
 scrollFrame.BorderSizePixel = 0
 scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 scrollFrame.ScrollBarThickness = 4
-scrollFrame.Parent = screenGui
+scrollFrame.Parent = mainFrame
 
 -- Layout
 local layout = Instance.new("UIListLayout")
@@ -24,7 +46,32 @@ layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Padding = UDim.new(0, 4)
 layout.Parent = scrollFrame
 
--- Function to log messages
+-- Resize logic
+local resizing = false
+local startPos, startSize
+
+resizeHandle.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		resizing = true
+		startPos = input.Position
+		startSize = mainFrame.Size
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if resizing and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - startPos
+		mainFrame.Size = UDim2.new(0, math.max(200, startSize.X.Offset + delta.X), 0, math.max(100, startSize.Y.Offset + delta.Y))
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		resizing = false
+	end
+end)
+
+-- Log messages
 local function logMessage(text, author)
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(1, -10, 0, 20)
@@ -40,10 +87,9 @@ local function logMessage(text, author)
 	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y)
 end
 
--- Listen to new messages
+-- Listen to chat
 TextChatService.OnIncomingMessage = function(message)
 	if message.Text and message.TextSource then
-		local speaker = message.TextSource.Name
-		logMessage(message.Text, speaker)
+		logMessage(message.Text, message.TextSource.Name)
 	end
 end
