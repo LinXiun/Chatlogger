@@ -291,11 +291,11 @@ end
 if TextChatService.MessageReceived then
 	TextChatService.MessageReceived:Connect(function(message)
 		if message.Text and message.TextSource then
-			local author = message.TextSource.Name
+			local author = message.TextSource.DisplayName or message.TextSource.Name
 			local userId = message.TextSource.UserId
 			if userId then
 				local p = Players:GetPlayerByUserId(userId)
-				if p then author = p.Name end
+				if p then author = p.DisplayName or p.Name end
 			end
 			logMessage(message.Text, author)
 		end
@@ -303,12 +303,12 @@ if TextChatService.MessageReceived then
 else
 	for _, p in ipairs(Players:GetPlayers()) do
 		p.Chatted:Connect(function(msg)
-			logMessage(msg, p.Name)
+			logMessage(msg, p.DisplayName or p.Name)
 		end)
 	end
 	Players.PlayerAdded:Connect(function(p)
 		p.Chatted:Connect(function(msg)
-			logMessage(msg, p.Name)
+			logMessage(msg, p.DisplayName or p.Name)
 		end)
 	end)
 end
