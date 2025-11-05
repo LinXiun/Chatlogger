@@ -91,12 +91,12 @@ unhideBtn.Parent = screenGui
 Instance.new("UICorner", unhideBtn).CornerRadius = UDim.new(0, 6)
 
 hideBtn.MouseButton1Click:Connect(function()
-        mainFrame.Visible = false
-        unhideBtn.Visible = true
+	mainFrame.Visible = false
+	unhideBtn.Visible = true
 end)
 unhideBtn.MouseButton1Click:Connect(function()
-        mainFrame.Visible = true
-        unhideBtn.Visible = false
+	mainFrame.Visible = true
+	unhideBtn.Visible = false
 end)
 
 local resizeHandle = Instance.new("Frame")
@@ -144,174 +144,174 @@ local fadeInTween = TweenService:Create(newMsgBtn, TweenInfo.new(0.25), {Backgro
 local fadeOutTween = TweenService:Create(newMsgBtn, TweenInfo.new(0.25), {BackgroundTransparency = 1, TextTransparency = 1})
 
 local function showNewMsgButton()
-        if not newMsgBtn.Visible then
-                newMsgBtn.Visible = true
-                fadeInTween:Play()
-        end
+	if not newMsgBtn.Visible then
+		newMsgBtn.Visible = true
+		fadeInTween:Play()
+	end
 end
 local function hideNewMsgButton()
-        if newMsgBtn.Visible then
-                fadeOutTween:Play()
-                task.delay(0.25, function() newMsgBtn.Visible = false end)
-        end
+	if newMsgBtn.Visible then
+		fadeOutTween:Play()
+		task.delay(0.25, function() newMsgBtn.Visible = false end)
+	end
 end
 newMsgBtn.MouseButton1Click:Connect(function()
-        scrollFrame.CanvasPosition = Vector2.new(0, math.max(0, layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y))
-        hideNewMsgButton()
+	scrollFrame.CanvasPosition = Vector2.new(0, math.max(0, layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y))
+	hideNewMsgButton()
 end)
 scrollFrame:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-        local bottomThreshold = layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y - 20
-        if scrollFrame.CanvasPosition.Y >= bottomThreshold then hideNewMsgButton() end
+	local bottomThreshold = layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y - 20
+	if scrollFrame.CanvasPosition.Y >= bottomThreshold then hideNewMsgButton() end
 end)
 
 -- Timestamp (12-hour format)
 local function formatTimestampUTCplus8()
-        local now = os.time()
-        local utc8 = os.date("!*t", now + 8 * 3600)
-        local hour, min = utc8.hour, utc8.min
-        local ampm = (hour >= 12) and "PM" or "AM"
-        if hour == 0 then hour = 12 elseif hour > 12 then hour = hour - 12 end
-        return string.format("%d:%02d%s", hour, min, ampm)
+	local now = os.time()
+	local utc8 = os.date("!*t", now + 8 * 3600)
+	local hour, min = utc8.hour, utc8.min
+	local ampm = (hour >= 12) and "PM" or "AM"
+	if hour == 0 then hour = 12 elseif hour > 12 then hour = hour - 12 end
+	return string.format("%d:%02d%s", hour, min, ampm)
 end
 
 -- Name color cache
 local function hashString(s)
-        local h = 0
-        for i = 1, #s do h = (h * 31 + string.byte(s, i)) % 0xFFFFFFFF end
-        return h
+	local h = 0
+	for i = 1, #s do h = (h * 31 + string.byte(s, i)) % 0xFFFFFFFF end
+	return h
 end
 local function hslToRgb(h, s, l)
-        local function hue2rgb(p, q, t)
-                if t < 0 then t += 1 end
-                if t > 1 then t -= 1 end
-                if t < 1/6 then return p + (q - p) * 6 * t end
-                if t < 1/2 then return q end
-                if t < 2/3 then return p + (q - p) * (2/3 - t) * 6 end
-                return p
-        end
-        local q = l < 0.5 and l * (1 + s) or l + s - l * s
-        local p = 2 * l - q
-        return Color3.new(hue2rgb(p, q, h + 1/3), hue2rgb(p, q, h), hue2rgb(p, q, h - 1/3))
+	local function hue2rgb(p, q, t)
+		if t < 0 then t += 1 end
+		if t > 1 then t -= 1 end
+		if t < 1/6 then return p + (q - p) * 6 * t end
+		if t < 1/2 then return q end
+		if t < 2/3 then return p + (q - p) * (2/3 - t) * 6 end
+		return p
+	end
+	local q = l < 0.5 and l * (1 + s) or l + s - l * s
+	local p = 2 * l - q
+	return Color3.new(hue2rgb(p, q, h + 1/3), hue2rgb(p, q, h), hue2rgb(p, q, h - 1/3))
 end
 local usernameColorCache = {}
 local function getColorForName(name)
-        if usernameColorCache[name] then return usernameColorCache[name] end
-        local hue = (hashString(name) % 360) / 360
-        local color = hslToRgb(hue, 0.55, 0.55)
-        usernameColorCache[name] = color
-        return color
+	if usernameColorCache[name] then return usernameColorCache[name] end
+	local hue = (hashString(name) % 360) / 360
+	local color = hslToRgb(hue, 0.55, 0.55)
+	usernameColorCache[name] = color
+	return color
 end
 
 -- Spectate functions
 local function spectatePlayer(targetName)
-        local target = Players:FindFirstChild(targetName)
-        if not target or not target.Character then return end
-        local humanoid = target.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-                camera.CameraType = Enum.CameraType.Custom
-                camera.CameraSubject = humanoid
-                spectateLabel.Text = "Spectating: " .. target.DisplayName
-        end
+	local target = Players:FindFirstChild(targetName)
+	if not target or not target.Character then return end
+	local humanoid = target.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		camera.CameraType = Enum.CameraType.Custom
+		camera.CameraSubject = humanoid
+		spectateLabel.Text = "Spectating: " .. target.DisplayName
+	end
 end
 local function returnToLocal()
-        local char = player.Character
-        if not char then return end
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-                camera.CameraType = Enum.CameraType.Custom
-                camera.CameraSubject = humanoid
-                spectateLabel.Text = ""
-        end
+	local char = player.Character
+	if not char then return end
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		camera.CameraType = Enum.CameraType.Custom
+		camera.CameraSubject = humanoid
+		spectateLabel.Text = ""
+	end
 end
 returnBtn.MouseButton1Click:Connect(returnToLocal)
 
 -- Log messages
 local function logMessage(text, displayName, username)
-        local entry = Instance.new("Frame")
-        entry.Size = UDim2.new(1, -10, 0, 0)
-        entry.BackgroundTransparency = 1
-        entry.AutomaticSize = Enum.AutomaticSize.Y
-        entry.Parent = scrollFrame
+	local entry = Instance.new("Frame")
+	entry.Size = UDim2.new(1, -10, 0, 0)
+	entry.BackgroundTransparency = 1
+	entry.AutomaticSize = Enum.AutomaticSize.Y
+	entry.Parent = scrollFrame
 
-        local tsLabel = Instance.new("TextLabel", entry)
-        tsLabel.Size = UDim2.new(0, 50, 0, 18)
-        tsLabel.BackgroundTransparency = 1
-        tsLabel.Font = Enum.Font.Code
-        tsLabel.TextSize = 14
-        tsLabel.Text = formatTimestampUTCplus8()
-        tsLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
-        tsLabel.TextXAlignment = Enum.TextXAlignment.Left
+	local tsLabel = Instance.new("TextLabel", entry)
+	tsLabel.Size = UDim2.new(0, 50, 0, 18)
+	tsLabel.BackgroundTransparency = 1
+	tsLabel.Font = Enum.Font.Code
+	tsLabel.TextSize = 14
+	tsLabel.Text = formatTimestampUTCplus8()
+	tsLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+	tsLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-        local nameBtn = Instance.new("TextButton", entry)
-        nameBtn.Size = UDim2.new(0, 120, 0, 0)
-        nameBtn.Position = UDim2.new(0, 54, 0, 0)
-        nameBtn.BackgroundTransparency = 1
-        nameBtn.AutoButtonColor = false
-        nameBtn.Font = Enum.Font.SourceSansBold
-        nameBtn.TextSize = 18
-        nameBtn.Text = displayName
-        nameBtn.TextXAlignment = Enum.TextXAlignment.Left
-        nameBtn.TextColor3 = getColorForName(username)
-        nameBtn.AutomaticSize = Enum.AutomaticSize.Y
-        nameBtn.MouseButton1Click:Connect(function() spectatePlayer(username) end)
+	local nameBtn = Instance.new("TextButton", entry)
+	nameBtn.Size = UDim2.new(0, 120, 0, 0)
+	nameBtn.Position = UDim2.new(0, 54, 0, 0)
+	nameBtn.BackgroundTransparency = 1
+	nameBtn.AutoButtonColor = false
+	nameBtn.Font = Enum.Font.SourceSansBold
+	nameBtn.TextSize = 18
+	nameBtn.Text = displayName
+	nameBtn.TextXAlignment = Enum.TextXAlignment.Left
+	nameBtn.TextColor3 = getColorForName(username)
+	nameBtn.AutomaticSize = Enum.AutomaticSize.Y
+	nameBtn.MouseButton1Click:Connect(function() spectatePlayer(username) end)
 
-        local msgBtn = Instance.new("TextButton", entry)
-        msgBtn.Size = UDim2.new(1, -160, 0, 0)
-        msgBtn.Position = UDim2.new(0, 174, 0, 0)
-        msgBtn.BackgroundTransparency = 1
-        msgBtn.Font = Enum.Font.SourceSans
-        msgBtn.TextSize = 18
-        msgBtn.TextWrapped = true
-        msgBtn.TextXAlignment = Enum.TextXAlignment.Left
-        msgBtn.AutomaticSize = Enum.AutomaticSize.Y
-        msgBtn.Text = text
-        msgBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
-        msgBtn.AutoButtonColor = true
+	local msgBtn = Instance.new("TextButton", entry)
+	msgBtn.Size = UDim2.new(1, -160, 0, 0)
+	msgBtn.Position = UDim2.new(0, 174, 0, 0)
+	msgBtn.BackgroundTransparency = 1
+	msgBtn.Font = Enum.Font.SourceSans
+	msgBtn.TextSize = 18
+	msgBtn.TextWrapped = true
+	msgBtn.TextXAlignment = Enum.TextXAlignment.Left
+	msgBtn.AutomaticSize = Enum.AutomaticSize.Y
+	msgBtn.Text = text
+	msgBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+	msgBtn.AutoButtonColor = true
 
-        msgBtn.MouseButton1Click:Connect(function()
-                if setclipboard then
-                        setclipboard(text)
-                        msgBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
-                        task.delay(0.5, function() msgBtn.TextColor3 = Color3.fromRGB(220, 220, 220) end)
-                end
-        end)
+	msgBtn.MouseButton1Click:Connect(function()
+		if setclipboard then
+			setclipboard(text)
+			msgBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
+			task.delay(0.5, function() msgBtn.TextColor3 = Color3.fromRGB(220, 220, 220) end)
+		end
+	end)
 
-        task.defer(function()
-                scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
-                local nearBottom = scrollFrame.CanvasPosition.Y >= layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y - 40
-                if nearBottom then
-                        scrollFrame.CanvasPosition = Vector2.new(0, math.max(0, layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y))
-                else
-                        showNewMsgButton()
-                end
-        end)
+	task.defer(function()
+		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
+		local nearBottom = scrollFrame.CanvasPosition.Y >= layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y - 40
+		if nearBottom then
+			scrollFrame.CanvasPosition = Vector2.new(0, math.max(0, layout.AbsoluteContentSize.Y - scrollFrame.AbsoluteSize.Y))
+		else
+			showNewMsgButton()
+		end
+	end)
 end
 
 -- Hook chat
 if TextChatService.MessageReceived then
-        TextChatService.MessageReceived:Connect(function(message)
-                if message.Text and message.TextSource then
-                        local userId = message.TextSource.UserId
-                        local displayName, username = "[Unknown]", "[Unknown]"
-                        if userId then
-                                local p = Players:GetPlayerByUserId(userId)
-                                if p then
-                                        displayName = p.DisplayName
-                                        username = p.Name
-                                end
-                        end
-                        logMessage(message.Text, displayName, username)
-                end
-        end)
+	TextChatService.MessageReceived:Connect(function(message)
+		if message.Text and message.TextSource then
+			local userId = message.TextSource.UserId
+			local displayName, username = "[Unknown]", "[Unknown]"
+			if userId then
+				local p = Players:GetPlayerByUserId(userId)
+				if p then
+					displayName = p.DisplayName
+					username = p.Name
+				end
+			end
+			logMessage(message.Text, displayName, username)
+		end
+	end)
 else
-        for _, p in ipairs(Players:GetPlayers()) do
-                p.Chatted:Connect(function(msg)
-                        logMessage(msg, p.DisplayName, p.Name)
-                end)
-        end
-        Players.PlayerAdded:Connect(function(p)
-                p.Chatted:Connect(function(msg)
-                        logMessage(msg, p.DisplayName, p.Name)
-                end)
-        end)
+	for _, p in ipairs(Players:GetPlayers()) do
+		p.Chatted:Connect(function(msg)
+			logMessage(msg, p.DisplayName, p.Name)
+		end)
+	end
+	Players.PlayerAdded:Connect(function(p)
+		p.Chatted:Connect(function(msg)
+			logMessage(msg, p.DisplayName, p.Name)
+		end)
+	end)
 end
