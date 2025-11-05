@@ -1,290 +1,48 @@
--- Chat Logger (Script-only GUI)
--- Place this LocalScript in StarterPlayer > StarterPlayerScripts
-
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
+local Chat = game:GetService("Chat")
+local player = Players.LocalPlayer
 
--- Try to get the default chat events (roblox default chat)
-local ChatEvents
-pcall(function()
-	ChatEvents = ReplicatedStorage:WaitForChild("DefaultChatSystemChatEvents", 2)
-end)
-
--- UI Constants
-local MAX_MESSAGES = 500  -- keep this reasonable to avoid UI slowdown
-local PADDING = 8
-local BG_COLOR = Color3.fromRGB(30, 30, 30)
-local FRAME_COLOR = Color3.fromRGB(40, 40, 40)
-local TEXT_COLOR = Color3.fromRGB(230, 230, 230)
-local TIMESTAMP_COLOR = Color3.fromRGB(160, 160, 160)
-local BTN_COLOR = Color3.fromRGB(60, 60, 60)
-
--- Create ScreenGui
+-- Create GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "ChatLoggerGUI"
+screenGui.Name = "ChatLoggerGui"
 screenGui.ResetOnSpawn = false
-screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Main container
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "Main"
-mainFrame.Size = UDim2.new(0, 380, 0, 300)
-mainFrame.Position = UDim2.new(1, -390, 0, 60) -- right side
-mainFrame.AnchorPoint = Vector2.new(0, 0)
-mainFrame.BackgroundColor3 = BG_COLOR
-mainFrame.BorderSizePixel = 0
-mainFrame.Parent = screenGui
+-- Create ScrollingFrame
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(0, 400, 0, 300)
+scrollFrame.Position = UDim2.new(0, 10, 0, 10)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.BorderSizePixel = 0
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollFrame.ScrollBarThickness = 4
+scrollFrame.Parent = screenGui
 
--- Header
-local header = Instance.new("Frame")
-header.Name = "Header"
-header.Size = UDim2.new(1, 0, 0, 28)
-header.BackgroundColor3 = FRAME_COLOR
-header.BorderSizePixel = 0
-header.Parent = mainFrame
+-- Layout to stack messages vertically
+local layout = Instance.new("UIListLayout")
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Padding = UDim.new(0, 4)
+layout.Parent = scrollFrame
 
-local title = Instance.new("TextLabel")
-title.Name = "Title"
-title.Size = UDim2.new(0.6, -PADDING, 1, 0)
-title.Position = UDim2.new(0, PADDING, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "Chat Logger"
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 16
-title.TextColor3 = TEXT_COLOR
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Parent = header
+-- Function to log chat messages
+local function logMessage(messageText, fromSpeaker)
+	local messageLabel = Instance.new("TextLabel")
+	messageLabel.Size = UDim2.new(1, -10, 0, 20)
+	messageLabel.BackgroundTransparency = 1
+	messageLabel.TextColor3 = Color3.new(1, 1, 1)
+	messageLabel.Font = Enum.Font.SourceSans
+	messageLabel.TextSize = 18
+	messageLabel.TextWrapped = true
+	messageLabel.Text = fromSpeaker .. ": " .. messageText
+	messageLabel.Parent = scrollFrame
 
--- Buttons: Toggle, Clear, Export
-local function makeButton(name, text, posScale)
-	local b = Instance.new("TextButton")
-	b.Name = name
-	b.Size = UDim2.new(0.13, 0, 0.85, 0)
-	b.Position = UDim2.new(posScale, -PADDING, 0.075, 0)
-	b.AnchorPoint = Vector2.new(0, 0)
-	b.BackgroundColor3 = BTN_COLOR
-	b.BorderSizePixel = 0
-	b.Text = text
-	b.TextColor3 = TEXT_COLOR
-	b.Font = Enum.Font.SourceSans
-	b.TextSize = 13
-	b.Parent = header
-	return b
+	-- Update canvas size
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y)
 end
 
-local toggleBtn = makeButton("ToggleBtn", "On", 0.65)
-local clearBtn = makeButton("ClearBtn", "Clear", 0.80)
-local exportBtn = makeButton("ExportBtn", "Export", 0.93)
-
--- Content area (scroll)
-local contentFrame = Instance.new("Frame")
-contentFrame.Name = "Content"
-contentFrame.Size = UDim2.new(1, -PADDING * 2, 1, -28 - PADDING * 2)
-contentFrame.Position = UDim2.new(0, PADDING, 0, 28 + PADDING)
-contentFrame.BackgroundTransparency = 1
-contentFrame.BorderSizePixel = 0
-contentFrame.Parent = mainFrame
-
-local scroll = Instance.new("ScrollingFrame")
-scroll.Name = "Scroll"
-scroll.Size = UDim2.new(1, 0, 1, 0)
-scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-scroll.ScrollBarThickness = 8
-scroll.BackgroundTransparency = 1
-scroll.Parent = contentFrame
-
-local uiList = Instance.new("UIListLayout")
-uiList.Parent = scroll
-uiList.SortOrder = Enum.SortOrder.LayoutOrder
-uiList.Padding = UDim.new(0, 6)
-
-local padding = Instance.new("UIPadding")
-padding.PaddingTop = UDim.new(0, 4)
-padding.PaddingBottom = UDim.new(0, 4)
-padding.PaddingLeft = UDim.new(0, 6)
-padding.PaddingRight = UDim.new(0, 6)
-padding.Parent = scroll
-
--- storage
-local messages = {} -- array of strings / tables
-local enabled = true
-
--- helper: add message to UI and internal array
-local function addMessage(speakerName, msg, userId)
-	-- build timestamp
-	local t = os.date("*t")
-	local ts = string.format("%02d:%02d:%02d", t.hour, t.min, t.sec)
-	local display = string.format("[%s] %s: %s", ts, speakerName or "?", msg or "")
-
-	-- push to messages array
-	table.insert(messages, {time = ts, name = speakerName or "", message = msg or "", userId = userId})
-	-- trim
-	if #messages > MAX_MESSAGES then
-		table.remove(messages, 1)
+-- Listen to filtered chat messages
+Chat.OnMessageDoneFiltering.OnClientEvent:Connect(function(messageData)
+	if messageData and messageData.Message and messageData.FromSpeaker then
+		logMessage(messageData.Message, messageData.FromSpeaker)
 	end
-
-	-- create UI element
-	local msgFrame = Instance.new("Frame")
-	msgFrame.Size = UDim2.new(1, 0, 0, 0) -- will size to content by UIListLayout and TextLabel
-	msgFrame.BackgroundTransparency = 1
-	msgFrame.BorderSizePixel = 0
-	msgFrame.Parent = scroll
-
-	local msgText = Instance.new("TextLabel")
-	msgText.Name = "Msg"
-	msgText.BackgroundTransparency = 1
-	msgText.Size = UDim2.new(1, 0, 0, 18)
-	msgText.RichText = true
-	msgText.TextXAlignment = Enum.TextXAlignment.Left
-	msgText.TextYAlignment = Enum.TextYAlignment.Top
-	msgText.Font = Enum.Font.SourceSans
-	msgText.TextSize = 14
-	msgText.TextColor3 = TEXT_COLOR
-	msgText.Text = string.format("<font color=\"rgb(%d,%d,%d)\">[%s]</font> <b>%s</b>: %s",
-		TIMESTAMP_COLOR.R*255, TIMESTAMP_COLOR.G*255, TIMESTAMP_COLOR.B*255,
-		ts, speakerName or "?", msg or "")
-	msgText.TextWrapped = true
-	msgText.Parent = msgFrame
-
-	-- adjust size after a heartbeat so text wrapping is accurate
-	RunService.Heartbeat:Wait()
-	local height = math.max(20, msgText.TextBounds.Y + 6)
-	msgText.Size = UDim2.new(1, 0, 0, height)
-	msgFrame.Size = UDim2.new(1, 0, 0, height)
-
-	-- update canvas size
-	RunService.Heartbeat:Wait()
-	scroll.CanvasSize = UDim2.new(0, 0, 0, uiList.AbsoluteContentSize.Y + 8)
-	-- auto-scroll to bottom
-	scroll.CanvasPosition = Vector2.new(0, math.max(0, uiList.AbsoluteContentSize.Y - scroll.AbsoluteSize.Y))
-end
-
--- connect to default chat event if available
-local connected = false
-if ChatEvents and ChatEvents:FindFirstChild("OnMessageDoneFiltering") then
-	local event = ChatEvents:FindFirstChild("OnMessageDoneFiltering")
-	if event and event:IsA("RemoteEvent") then
-		connected = true
-		event.OnClientEvent:Connect(function(messageData)
-			if not enabled then return end
-			-- messageData typically contains fields: SpeakerUserId, SpeakerName, Message, Channel
-			local name = messageData.FromSpeaker or messageData.SpeakerName or messageData.FromSpeaker
-			local message = messageData.Message or messageData.Text or ""
-			local userId = messageData.SpeakerUserId or messageData.FromSpeakerUserId
-			addMessage(name, message, userId)
-		end)
-	end
-end
-
--- fallback: connect to Players' Chatted (works fine for many games; but default chat events preferred)
-if not connected then
-	-- connect existing players
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= LocalPlayer then
-			p.Chatted:Connect(function(msg)
-				if not enabled then return end
-				addMessage(p.Name, msg, p.UserId)
-			end)
-		end
-	end
-	-- connect future players
-	Players.PlayerAdded:Connect(function(p)
-		if p ~= LocalPlayer then
-			p.Chatted:Connect(function(msg)
-				if not enabled then return end
-				addMessage(p.Name, msg, p.UserId)
-			end)
-		end
-	end)
-	-- also log local player's own chat
-	LocalPlayer.Chatted:Connect(function(msg)
-		if not enabled then return end
-		addMessage(LocalPlayer.Name, msg, LocalPlayer.UserId)
-	end)
-end
-
--- Button behaviours
-toggleBtn.MouseButton1Click:Connect(function()
-	enabled = not enabled
-	toggleBtn.Text = enabled and "On" or "Off"
-	toggleBtn.TextColor3 = enabled and TEXT_COLOR or Color3.fromRGB(200, 80, 80)
-end)
-
-clearBtn.MouseButton1Click:Connect(function()
-	-- clear storage and UI children
-	messages = {}
-	for _, child in pairs(scroll:GetChildren()) do
-		if child:IsA("Frame") or child:IsA("TextLabel") then
-			child:Destroy()
-		end
-	end
-	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-end)
-
-exportBtn.MouseButton1Click:Connect(function()
-	-- build single text dump
-	local out = {}
-	for i, m in ipairs(messages) do
-		out[#out+1] = string.format("[%s] %s: %s", m.time, m.name, m.message)
-	end
-	local dump = table.concat(out, "\n")
-	-- try to set to clipboard (only works in Studio or environments allowing it)
-	local ok, err = pcall(function()
-		setclipboard(dump)
-	end)
-	if ok then
-		-- show a small ephemeral confirmation in the header
-		local saved = Instance.new("TextLabel")
-		saved.Size = UDim2.new(0.4, 0, 1, 0)
-		saved.Position = UDim2.new(0.12, 0, 0, 0)
-		saved.BackgroundTransparency = 1
-		saved.Text = "Exported to clipboard"
-		saved.TextColor3 = Color3.fromRGB(120, 255, 120)
-		saved.Font = Enum.Font.SourceSans
-		saved.TextSize = 14
-		saved.Parent = header
-		delay(2, function() if saved and saved.Parent then saved:Destroy() end end)
-	else
-		warn("ChatLogger: Unable to set clipboard in this environment. Here's the dump in Output:")
-		print(dump) -- prints to output so developer can copy in Studio
-	end
-end)
-
--- friendly small resize handle (dragging)
-local dragging
-local dragStart
-local startPos
-
-local function onInputBegan(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragStart = input.Position
-		startPos = mainFrame.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
-end
-
-local function onInputChanged(input)
-	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-		local delta = input.Position - dragStart
-		local newPos = startPos + UDim2.new(0, delta.X, 0, delta.Y)
-		mainFrame.Position = newPos
-	end
-end
-
-header.InputBegan:Connect(onInputBegan)
-header.InputChanged:Connect(onInputChanged)
-
--- initial message
-addMessage("System", "Chat logger loaded. Using " .. (connected and "OnMessageDoneFiltering" or "Player.Chatted") .. " listener.")
-
--- keep canvas size correct when content changes
-uiList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-	scroll.CanvasSize = UDim2.new(0, 0, 0, uiList.AbsoluteContentSize.Y + 8)
 end)
