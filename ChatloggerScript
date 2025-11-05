@@ -1,4 +1,4 @@
--- Chat Logger GUI (with player filtering on the left)
+-- Chat Logger GUI with dynamic left dropdown
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
@@ -28,7 +28,10 @@ header.Size = UDim2.new(1, 0, 0, 28)
 header.BackgroundTransparency = 1
 header.Parent = mainFrame
 
--- 🔽 Title Button
+-- Dropdown width
+local dropdownWidth = 120
+
+-- Title Button
 local titleBtn = Instance.new("TextButton")
 titleBtn.Size = UDim2.new(1, -140, 1, 0)
 titleBtn.Position = UDim2.new(0, 8, 0, 0)
@@ -40,9 +43,9 @@ titleBtn.TextSize = 16
 titleBtn.TextXAlignment = Enum.TextXAlignment.Left
 titleBtn.Parent = header
 
--- Dropdown container (Left side)
+-- Dropdown Frame (Left Side)
 local dropdownFrame = Instance.new("Frame")
-dropdownFrame.Size = UDim2.new(0, 120, 1, -36)
+dropdownFrame.Size = UDim2.new(0, dropdownWidth, 1, -36)
 dropdownFrame.Position = UDim2.new(0, 0, 0, 36)
 dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 dropdownFrame.Visible = false
@@ -94,16 +97,10 @@ end
 Players.PlayerAdded:Connect(updateDropdown)
 Players.PlayerRemoving:Connect(updateDropdown)
 
-titleBtn.MouseButton1Click:Connect(function()
-	dropdownFrame.Visible = not dropdownFrame.Visible
-	titleBtn.Text = dropdownFrame.Visible and "Chat Logger ▲" or "Chat Logger ▼"
-	updateDropdown()
-end)
-
--- ScrollFrame for logs (shifted to right of dropdown)
+-- ScrollFrame for chat logs
 local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Size = UDim2.new(1, -130, 1, -36)
-scrollFrame.Position = UDim2.new(0, 130, 0, 36)
+scrollFrame.Size = UDim2.new(1, 0, 1, -36)
+scrollFrame.Position = UDim2.new(0, 0, 0, 36)
 scrollFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 scrollFrame.BackgroundTransparency = 0.5
 scrollFrame.BorderSizePixel = 0
@@ -117,7 +114,27 @@ layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Padding = UDim.new(0, 4)
 layout.Parent = scrollFrame
 
--- Timestamp + log + filter logic
+-- Function to toggle dropdown and resize chat panel
+local function toggleDropdown()
+	dropdownFrame.Visible = not dropdownFrame.Visible
+	if dropdownFrame.Visible then
+		titleBtn.Text = "Chat Logger ▲"
+		TweenService:Create(scrollFrame, TweenInfo.new(0.2), {
+			Size = UDim2.new(1, -dropdownWidth - 10, 1, -36),
+			Position = UDim2.new(0, dropdownWidth, 0, 36)
+		}):Play()
+	else
+		titleBtn.Text = "Chat Logger ▼"
+		TweenService:Create(scrollFrame, TweenInfo.new(0.2), {
+			Size = UDim2.new(1, 0, 1, -36),
+			Position = UDim2.new(0, 0, 0, 36)
+		}):Play()
+	end
+	updateDropdown()
+end
+titleBtn.MouseButton1Click:Connect(toggleDropdown)
+
+-- Timestamp + log message functions
 local function formatTimestampUTCplus8()
 	local now = os.time()
 	local utc8 = os.date("!*t", now + 8 * 3600)
@@ -158,9 +175,7 @@ end
 
 local function logMessage(text, displayName, username)
 	-- Filter check
-	if next(selectedPlayers) ~= nil and not selectedPlayers[username] then
-		return
-	end
+	if next(selectedPlayers) ~= nil and not selectedPlayers[username] then return end
 
 	local entry = Instance.new("Frame")
 	entry.Size = UDim2.new(1, -10, 0, 0)
