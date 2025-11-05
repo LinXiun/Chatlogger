@@ -1,5 +1,5 @@
 local Players = game:GetService("Players")
-local Chat = game:GetService("Chat")
+local TextChatService = game:GetService("TextChatService")
 local player = Players.LocalPlayer
 
 -- Create GUI
@@ -18,31 +18,32 @@ scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 scrollFrame.ScrollBarThickness = 4
 scrollFrame.Parent = screenGui
 
--- Layout to stack messages vertically
+-- Layout
 local layout = Instance.new("UIListLayout")
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Padding = UDim.new(0, 4)
 layout.Parent = scrollFrame
 
--- Function to log chat messages
-local function logMessage(messageText, fromSpeaker)
-	local messageLabel = Instance.new("TextLabel")
-	messageLabel.Size = UDim2.new(1, -10, 0, 20)
-	messageLabel.BackgroundTransparency = 1
-	messageLabel.TextColor3 = Color3.new(1, 1, 1)
-	messageLabel.Font = Enum.Font.SourceSans
-	messageLabel.TextSize = 18
-	messageLabel.TextWrapped = true
-	messageLabel.Text = fromSpeaker .. ": " .. messageText
-	messageLabel.Parent = scrollFrame
+-- Function to log messages
+local function logMessage(text, author)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -10, 0, 20)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.Font = Enum.Font.SourceSans
+	label.TextSize = 18
+	label.TextWrapped = true
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Text = author .. ": " .. text
+	label.Parent = scrollFrame
 
-	-- Update canvas size
 	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y)
 end
 
--- Listen to filtered chat messages
-Chat.OnMessageDoneFiltering.OnClientEvent:Connect(function(messageData)
-	if messageData and messageData.Message and messageData.FromSpeaker then
-		logMessage(messageData.Message, messageData.FromSpeaker)
+-- Listen to new messages
+TextChatService.OnIncomingMessage = function(message)
+	if message.Text and message.TextSource then
+		local speaker = message.TextSource.Name
+		logMessage(message.Text, speaker)
 	end
-end)
+end
