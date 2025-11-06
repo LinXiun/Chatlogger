@@ -278,8 +278,9 @@ local function buildMessageEntry(msgData)
 
     -- message text as a TextButton so it supports clicks reliably
     local msgBtn = Instance.new("TextButton")
-    msgBtn.Size = UDim2.new(1, -200, 0, 18)
+    msgBtn.Size = UDim2.new(1, -200, 0, 0)         -- zero height, autosize will set correct height
     msgBtn.Position = UDim2.new(0, 192, 0, 0)
+    msgBtn.AutomaticSize = Enum.AutomaticSize.Y   -- let the button grow vertically to fit wrapped text
     msgBtn.BackgroundTransparency = 1
     msgBtn.AutoButtonColor = false
     msgBtn.Font = Enum.Font.SourceSans
