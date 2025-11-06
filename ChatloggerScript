@@ -1,3 +1,11 @@
+-- 🧩 Safety Check: Prevent duplicate Chat Logger GUIs
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+if player:FindFirstChild("PlayerGui"):FindFirstChild("ChatLoggerGui") then
+    warn("[ChatLogger] Already running – skipping duplicate instance.")
+    return
+end
+
 -- Chat Logger — Final Stable Version (split parts)
 -- Part 1/5: Setup & Header
 
