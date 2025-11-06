@@ -146,6 +146,73 @@ dropdownLayout.Padding = UDim.new(0, 4)
 dropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
 dropdownLayout.Parent = dropdownScroll
 
+-- Function to rebuild dropdown properly
+local function refreshDropdown()
+	-- Clear all except layout
+	for _, child in ipairs(dropdownScroll:GetChildren()) do
+		if not child:IsA("UIListLayout") then
+			child:Destroy()
+		end
+	end
+
+	-- All button
+	local allBtn = Instance.new("TextButton")
+	allBtn.Size = UDim2.new(1, -8, 0, 26)
+	allBtn.BackgroundColor3 = showAll and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 60)
+	allBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+	allBtn.Font = Enum.Font.SourceSansBold
+	allBtn.TextSize = 16
+	allBtn.Text = "All"
+	allBtn.BorderSizePixel = 0
+	allBtn.Parent = dropdownScroll
+	Instance.new("UICorner", allBtn).CornerRadius = UDim.new(0, 6)
+
+	allBtn.MouseButton1Click:Connect(function()
+		showAll = not showAll
+		if showAll then
+			for k in pairs(selectedPlayers) do selectedPlayers[k] = nil end
+		end
+		refreshDropdown()
+		rebuildMessages()
+	end)
+
+	-- Player buttons (below "All")
+	for _, p in ipairs(Players:GetPlayers()) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, -8, 0, 26)
+		btn.BackgroundColor3 = selectedPlayers[p.Name] and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 60)
+		btn.TextColor3 = Color3.fromRGB(240, 240, 240)
+		btn.Font = Enum.Font.SourceSans
+		btn.TextSize = 14
+		btn.Text = p.DisplayName .. " (@" .. p.Name .. ")"
+		btn.BorderSizePixel = 0
+		btn.Parent = dropdownScroll
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+		btn.MouseButton1Click:Connect(function()
+			selectedPlayers[p.Name] = not selectedPlayers[p.Name]
+			showAll = false
+			refreshDropdown()
+			rebuildMessages()
+		end)
+	end
+
+	-- Update scroll height properly
+	task.defer(function()
+		dropdownScroll.CanvasSize = UDim2.new(0, 0, 0, dropdownLayout.AbsoluteContentSize.Y + 8)
+	end)
+end
+
+dropdownScroll.ScrollBarThickness = 6
+dropdownScroll.BackgroundTransparency = 1
+dropdownScroll.BorderSizePixel = 0
+dropdownScroll.Parent = dropdownFrame
+
+local dropdownLayout = Instance.new("UIListLayout")
+dropdownLayout.Padding = UDim.new(0, 4)
+dropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
+dropdownLayout.Parent = dropdownScroll
+
 -- Chat area (resizable)
 local scrollFrame = Instance.new("ScrollingFrame")
 scrollFrame.Size = UDim2.new(1, 0, 1, -36)
