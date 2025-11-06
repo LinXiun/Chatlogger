@@ -1,92 +1,116 @@
---// Chat Logger GUI (Transparent, Rounded, Draggable, Fixed Dropdown)
-
+-- Chat Logger GUI (DisplayName, 12hr format, Spectate safe, Dropdown filter, Transparent, Rounded)
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
--- Screen GUI
+-- GUI setup
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "ChatLoggerGui"
 screenGui.ResetOnSpawn = false
-screenGui.IgnoreGuiInset = true
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Main Frame
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 400, 0, 350)
-mainFrame.Position = UDim2.new(0.5, -200, 0.5, -175)
+mainFrame.Size = UDim2.new(0, 360, 0, 300)
+mainFrame.Position = UDim2.new(0, 10, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BackgroundTransparency = 0.65
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = true
 mainFrame.Parent = screenGui
-
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
 
 -- Header
 local header = Instance.new("Frame")
-header.Size = UDim2.new(1, 0, 0, 36)
-header.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-header.BackgroundTransparency = 0.4
-header.BorderSizePixel = 0
+header.Size = UDim2.new(1, 0, 0, 28)
+header.BackgroundTransparency = 1
 header.Parent = mainFrame
-Instance.new("UICorner", header).CornerRadius = UDim.new(0, 8)
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -90, 1, 0)
-title.Position = UDim2.new(0, 10, 0, 0)
+title.Size = UDim2.new(1, -160, 1, 0)
+title.Position = UDim2.new(0, 8, 0, 0)
 title.BackgroundTransparency = 1
 title.Text = "Chat Logger"
+title.TextColor3 = Color3.fromRGB(220, 220, 220)
 title.Font = Enum.Font.SourceSansBold
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextSize = 20
+title.TextSize = 16
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = header
 
--- Dropdown Toggle Button (restored)
-local dropdownToggle = Instance.new("TextButton")
-dropdownToggle.Size = UDim2.new(0, 30, 0, 24)
-dropdownToggle.Position = UDim2.new(0, 10, 0, 6)
-dropdownToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-dropdownToggle.BackgroundTransparency = 0.3
-dropdownToggle.Text = "▼"
-dropdownToggle.Font = Enum.Font.SourceSansBold
-dropdownToggle.TextSize = 20
-dropdownToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-dropdownToggle.Parent = header
-Instance.new("UICorner", dropdownToggle).CornerRadius = UDim.new(0, 6)
+-- Return button
+local returnBtn = Instance.new("TextButton")
+returnBtn.Size = UDim2.new(0, 24, 0, 24)
+returnBtn.Position = UDim2.new(1, -84, 0, 2)
+returnBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+returnBtn.BorderSizePixel = 0
+returnBtn.Text = "⟳"
+returnBtn.Font = Enum.Font.SourceSansBold
+returnBtn.TextSize = 18
+returnBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+returnBtn.Parent = header
+Instance.new("UICorner", returnBtn).CornerRadius = UDim.new(0, 6)
 
--- Hide Button
-local hideButton = Instance.new("TextButton")
-hideButton.Size = UDim2.new(0, 24, 0, 24)
-hideButton.Position = UDim2.new(1, -34, 0, 6)
-hideButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-hideButton.BackgroundTransparency = 0.3
-hideButton.Text = "−"
-hideButton.Font = Enum.Font.SourceSansBold
-hideButton.TextSize = 20
-hideButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-hideButton.Parent = header
-Instance.new("UICorner", hideButton).CornerRadius = UDim.new(0, 6)
+-- Dropdown toggle button (%)
+local dropdownBtn = Instance.new("TextButton")
+dropdownBtn.Size = UDim2.new(0, 24, 0, 24)
+dropdownBtn.Position = UDim2.new(1, -56, 0, 2)
+dropdownBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+dropdownBtn.BorderSizePixel = 0
+dropdownBtn.Text = "%"
+dropdownBtn.Font = Enum.Font.SourceSansBold
+dropdownBtn.TextSize = 18
+dropdownBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+dropdownBtn.Parent = header
+Instance.new("UICorner", dropdownBtn).CornerRadius = UDim.new(0, 6)
 
--- Return Button
-local returnButton = Instance.new("TextButton")
-returnButton.Size = UDim2.new(0, 24, 0, 24)
-returnButton.Position = UDim2.new(1, -64, 0, 6)
-returnButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-returnButton.BackgroundTransparency = 0.3
-returnButton.Text = "⟳"
-returnButton.Font = Enum.Font.SourceSansBold
-returnButton.TextSize = 18
-returnButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-returnButton.Parent = header
-Instance.new("UICorner", returnButton).CornerRadius = UDim.new(0, 6)
+-- Hide button
+local hideBtn = Instance.new("TextButton")
+hideBtn.Size = UDim2.new(0, 24, 0, 24)
+hideBtn.Position = UDim2.new(1, -28, 0, 2)
+hideBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+hideBtn.BorderSizePixel = 0
+hideBtn.Text = "v"
+hideBtn.Font = Enum.Font.SourceSansBold
+hideBtn.TextSize = 14
+hideBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+hideBtn.Parent = header
+Instance.new("UICorner", hideBtn).CornerRadius = UDim.new(0, 6)
 
--- Dropdown Panel (left side)
-local dropdownWidth = 120
+-- Unhide button
+local unhideBtn = Instance.new("TextButton")
+unhideBtn.Size = UDim2.new(0, 30, 0, 30)
+unhideBtn.Position = UDim2.new(0, 10, 0, 10)
+unhideBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+unhideBtn.BorderSizePixel = 0
+unhideBtn.Text = "^"
+unhideBtn.Font = Enum.Font.SourceSansBold
+unhideBtn.TextSize = 18
+unhideBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+unhideBtn.Visible = false
+unhideBtn.Active = true
+unhideBtn.Draggable = true
+unhideBtn.Parent = screenGui
+Instance.new("UICorner", unhideBtn).CornerRadius = UDim.new(0, 6)
+
+hideBtn.MouseButton1Click:Connect(function()
+	mainFrame.Visible = false
+	unhideBtn.Visible = true
+end)
+unhideBtn.MouseButton1Click:Connect(function()
+	mainFrame.Visible = true
+	unhideBtn.Visible = false
+end)
+
+-- Dropdown setup
+local dropdownWidth = 140
+local dropdownOpen = false
+local showAll = true
+local selectedPlayers = {}
+local messages = {}
+
+-- Dropdown Frame (hidden by default)
 local dropdownFrame = Instance.new("Frame")
 dropdownFrame.Size = UDim2.new(0, dropdownWidth, 1, -36)
 dropdownFrame.Position = UDim2.new(0, 0, 0, 36)
@@ -97,6 +121,7 @@ dropdownFrame.Visible = false
 dropdownFrame.Parent = mainFrame
 Instance.new("UICorner", dropdownFrame).CornerRadius = UDim.new(0, 8)
 
+-- Scrollable area for player list
 local dropdownScroll = Instance.new("ScrollingFrame")
 dropdownScroll.Size = UDim2.new(1, 0, 1, -6)
 dropdownScroll.Position = UDim2.new(0, 0, 0, 3)
@@ -111,79 +136,47 @@ dropdownLayout.Padding = UDim.new(0, 4)
 dropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
 dropdownLayout.Parent = dropdownScroll
 
--- Chat panel
-local chatFrame = Instance.new("Frame")
-chatFrame.Position = UDim2.new(0, 0, 0, 36)
-chatFrame.Size = UDim2.new(1, 0, 1, -36)
-chatFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-chatFrame.BackgroundTransparency = 0.65
-chatFrame.BorderSizePixel = 0
-chatFrame.Parent = mainFrame
-Instance.new("UICorner", chatFrame).CornerRadius = UDim.new(0, 8)
-
--- ScrollFrame for chat logs
+-- Chat scroll frame (right side)
 local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Size = UDim2.new(1, 0, 1, -30)
-scrollFrame.Position = UDim2.new(0, 0, 0, 0)
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-scrollFrame.BackgroundTransparency = 1
+scrollFrame.Size = UDim2.new(1, 0, 1, -36)
+scrollFrame.Position = UDim2.new(0, 0, 0, 36)
+scrollFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+scrollFrame.BackgroundTransparency = 0.65
 scrollFrame.BorderSizePixel = 0
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 scrollFrame.ScrollBarThickness = 6
-scrollFrame.Parent = chatFrame
+scrollFrame.Parent = mainFrame
+Instance.new("UICorner", scrollFrame).CornerRadius = UDim.new(0, 8)
 
 local layout = Instance.new("UIListLayout")
 layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Padding = UDim.new(0, 2)
+layout.Padding = UDim.new(0, 4)
 layout.Parent = scrollFrame
 
--- Data
-local messages = {}
-local selectedPlayers = {}
-local showAll = true
-local dropdownOpen = false
-
--- Functions
+-- Rebuild messages based on filter
 local function rebuildMessages()
 	for _, child in ipairs(scrollFrame:GetChildren()) do
-		if child:IsA("TextLabel") then child:Destroy() end
-	end
-	for _, data in ipairs(messages) do
-		if showAll or selectedPlayers[data.username] then
-			local label = Instance.new("TextLabel")
-			label.Size = UDim2.new(1, -10, 0, 20)
-			label.BackgroundTransparency = 1
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.Font = Enum.Font.SourceSans
-			label.TextSize = 16
-			label.TextColor3 = Color3.fromRGB(255, 255, 255)
-			label.Text = "[" .. data.displayName .. "]: " .. data.text
-			label.Parent = scrollFrame
-
-			local clickCount = 0
-			label.MouseButton1Click:Connect(function()
-				clickCount += 1
-				task.delay(0.5, function() clickCount = 0 end)
-				local target = Players:FindFirstChild(data.username)
-				if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-					if clickCount == 1 then
-						camera.CameraSubject = target.Character:FindFirstChild("Humanoid")
-					elseif clickCount == 3 then
-						player.Character:MoveTo(target.Character.HumanoidRootPart.Position + Vector3.new(0, 3, 0))
-					end
-				end
-			end)
-		end
-	end
-	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y)
-end
-
--- Dropdown Refresh
-local function refreshDropdown()
-	for _, child in ipairs(dropdownScroll:GetChildren()) do
 		if not child:IsA("UIListLayout") then child:Destroy() end
 	end
 
-	-- "All" Button
+	for _, msgData in ipairs(messages) do
+		if showAll or selectedPlayers[msgData.username] then
+			task.defer(function()
+				msgData.render(msgData)
+			end)
+		end
+	end
+end
+
+-- Refresh dropdown list
+local function refreshDropdown()
+	for _, child in ipairs(dropdownScroll:GetChildren()) do
+		if not child:IsA("UIListLayout") then
+			child:Destroy()
+		end
+	end
+
+	-- All button (always on top)
 	local allBtn = Instance.new("TextButton")
 	allBtn.Size = UDim2.new(1, -8, 0, 26)
 	allBtn.BackgroundColor3 = showAll and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 60)
@@ -196,12 +189,13 @@ local function refreshDropdown()
 	Instance.new("UICorner", allBtn).CornerRadius = UDim.new(0, 6)
 
 	allBtn.MouseButton1Click:Connect(function()
-		showAll = not showAll
-		if showAll then for k in pairs(selectedPlayers) do selectedPlayers[k] = nil end end
+		showAll = true
+		selectedPlayers = {}
 		refreshDropdown()
 		rebuildMessages()
 	end)
 
+	-- Individual player buttons
 	for _, p in ipairs(Players:GetPlayers()) do
 		local btn = Instance.new("TextButton")
 		btn.Size = UDim2.new(1, -8, 0, 26)
@@ -215,8 +209,8 @@ local function refreshDropdown()
 		Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
 
 		btn.MouseButton1Click:Connect(function()
-			selectedPlayers[p.Name] = not selectedPlayers[p.Name]
 			showAll = false
+			selectedPlayers[p.Name] = not selectedPlayers[p.Name]
 			refreshDropdown()
 			rebuildMessages()
 		end)
@@ -227,78 +221,227 @@ local function refreshDropdown()
 	end)
 end
 
--- Toggle Dropdown
-dropdownToggle.MouseButton1Click:Connect(function()
+-- Toggle dropdown open/close
+dropdownBtn.MouseButton1Click:Connect(function()
 	dropdownOpen = not dropdownOpen
 	dropdownFrame.Visible = dropdownOpen
 	if dropdownOpen then
-		chatFrame.Position = UDim2.new(0, dropdownWidth, 0, 36)
-		chatFrame.Size = UDim2.new(1, -dropdownWidth, 1, -36)
+		scrollFrame.Position = UDim2.new(0, dropdownWidth + 6, 0, 36)
+		scrollFrame.Size = UDim2.new(1, -dropdownWidth - 6, 1, -36)
 	else
-		chatFrame.Position = UDim2.new(0, 0, 0, 36)
-		chatFrame.Size = UDim2.new(1, 0, 1, -36)
+		scrollFrame.Position = UDim2.new(0, 0, 0, 36)
+		scrollFrame.Size = UDim2.new(1, 0, 1, -36)
 	end
-end)
-
--- Hide/Return
-hideButton.MouseButton1Click:Connect(function()
-	mainFrame.Visible = false
-	wait(0.5)
-	returnButton.Visible = true
-end)
-
-returnButton.MouseButton1Click:Connect(function()
-	mainFrame.Visible = true
 end)
 
 Players.PlayerAdded:Connect(refreshDropdown)
 Players.PlayerRemoving:Connect(refreshDropdown)
 
--- New message indicator
-local newMsgBtn = Instance.new("TextButton")
-newMsgBtn.Size = UDim2.new(1, 0, 0, 24)
-newMsgBtn.Position = UDim2.new(0, 0, 1, -24)
-newMsgBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-newMsgBtn.BackgroundTransparency = 0.5
-newMsgBtn.Text = "New messages below ↓"
-newMsgBtn.Font = Enum.Font.SourceSansBold
-newMsgBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-newMsgBtn.TextSize = 16
-newMsgBtn.Visible = false
-newMsgBtn.Parent = mainFrame
-Instance.new("UICorner", newMsgBtn).CornerRadius = UDim.new(0, 6)
+-- Function to get unique, consistent color per player
+local function getColorFromName(name)
+	local hash = 0
+	for i = 1, #name do
+		hash = (hash + string.byte(name, i) * i) % 255
+	end
+	return Color3.fromHSV((hash % 50) / 50, 0.8, 1)
+end
 
-newMsgBtn.MouseButton1Click:Connect(function()
-	scrollFrame.CanvasPosition = Vector2.new(0, scrollFrame.CanvasSize.Y.Offset)
-	newMsgBtn.Visible = false
-end)
+-- Track click count for teleport
+local clickTimes = {}
 
-scrollFrame:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-	local maxScroll = scrollFrame.CanvasSize.Y.Offset - scrollFrame.AbsoluteWindowSize.Y
-	if scrollFrame.CanvasPosition.Y < maxScroll - 40 then
-		newMsgBtn.Visible = true
+-- Function to spectate player
+local function spectatePlayer(target)
+	if target and target.Character and target.Character:FindFirstChild("Humanoid") then
+		camera.CameraSubject = target.Character:FindFirstChild("Humanoid")
+	end
+end
+
+-- Function to teleport player to target
+local function teleportToPlayer(target)
+	if target and target.Character and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		local hrp = player.Character.HumanoidRootPart
+		local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
+		if targetHRP then
+			hrp.CFrame = targetHRP.CFrame + Vector3.new(0, 3, 0)
+		end
+	end
+end
+
+-- Function to format time in 12hr format
+local function formatTime()
+	local t = os.date("*t")
+	local hour = t.hour % 12
+	if hour == 0 then hour = 12 end
+	local min = string.format("%02d", t.min)
+	local ampm = t.hour >= 12 and "PM" or "AM"
+	return string.format("[%d:%s%s]", hour, min, ampm)
+end
+
+-- Function to copy message to clipboard
+local function copyToClipboard(text)
+	if setclipboard then
+		setclipboard(text)
+	elseif toclipboard then
+		toclipboard(text)
+	end
+end
+
+-- Function to create and render message
+local function createMessage(p, text)
+	local msgFrame = Instance.new("TextButton")
+	msgFrame.AutoButtonColor = false
+	msgFrame.BackgroundTransparency = 1
+	msgFrame.Size = UDim2.new(1, -6, 0, 22)
+	msgFrame.Text = ""
+	msgFrame.Parent = scrollFrame
+
+	local timestamp = Instance.new("TextLabel")
+	timestamp.Size = UDim2.new(0, 70, 1, 0)
+	timestamp.BackgroundTransparency = 1
+	timestamp.Text = formatTime()
+	timestamp.TextColor3 = Color3.fromRGB(180, 180, 180)
+	timestamp.Font = Enum.Font.Code
+	timestamp.TextSize = 14
+	timestamp.TextXAlignment = Enum.TextXAlignment.Left
+	timestamp.Parent = msgFrame
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.new(0, 120, 1, 0)
+	nameLabel.Position = UDim2.new(0, 75, 0, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = p.DisplayName
+	nameLabel.TextColor3 = getColorFromName(p.Name)
+	nameLabel.Font = Enum.Font.SourceSansBold
+	nameLabel.TextSize = 14
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	nameLabel.Parent = msgFrame
+
+	local msgText = Instance.new("TextLabel")
+	msgText.Size = UDim2.new(1, -200, 1, 0)
+	msgText.Position = UDim2.new(0, 200, 0, 0)
+	msgText.BackgroundTransparency = 1
+	msgText.Text = text
+	msgText.TextColor3 = Color3.fromRGB(230, 230, 230)
+	msgText.Font = Enum.Font.SourceSans
+	msgText.TextSize = 14
+	msgText.TextXAlignment = Enum.TextXAlignment.Left
+	msgText.Parent = msgFrame
+
+	-- Click events
+	nameLabel.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			local now = tick()
+			clickTimes[p.Name] = clickTimes[p.Name] or {}
+			table.insert(clickTimes[p.Name], now)
+
+			-- keep last 1 sec window
+			for i = #clickTimes[p.Name], 1, -1 do
+				if now - clickTimes[p.Name][i] > 1 then
+					table.remove(clickTimes[p.Name], i)
+				end
+			end
+
+			if #clickTimes[p.Name] >= 3 then
+				teleportToPlayer(p)
+				clickTimes[p.Name] = {}
+			else
+				spectatePlayer(p)
+			end
+		end
+	end)
+
+	msgText.MouseButton1Click:Connect(function()
+		copyToClipboard(text)
+	end)
+
+	table.insert(messages, {
+		username = p.Name,
+		displayname = p.DisplayName,
+		text = text,
+		render = function()
+			local clone = msgFrame:Clone()
+			clone.Parent = scrollFrame
+			clone.Visible = true
+		end
+	})
+
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+end
+
+-- 🧩 PART 4 — Chat Connections & Final Setup
+
+-- Capture chat messages (TextChatService preferred)
+local function hookChat()
+	if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+		-- Modern chat system
+		TextChatService.MessageReceived:Connect(function(message)
+			local sender = message.TextSource and Players:FindFirstChild(message.TextSource.Name)
+			if sender then
+				if showAll or selectedPlayers[sender.Name] then
+					createMessage(sender, message.Text)
+				else
+					table.insert(messages, {
+						username = sender.Name,
+						displayname = sender.DisplayName,
+						text = message.Text,
+						render = function() createMessage(sender, message.Text) end
+					})
+				end
+			end
+		end)
 	else
-		newMsgBtn.Visible = false
+		-- Legacy chat system (fallback)
+		for _, p in ipairs(Players:GetPlayers()) do
+			p.Chatted:Connect(function(msg)
+				if showAll or selectedPlayers[p.Name] then
+					createMessage(p, msg)
+				else
+					table.insert(messages, {
+						username = p.Name,
+						displayname = p.DisplayName,
+						text = msg,
+						render = function() createMessage(p, msg) end
+					})
+				end
+			end)
+		end
+
+		Players.PlayerAdded:Connect(function(p)
+			p.Chatted:Connect(function(msg)
+				if showAll or selectedPlayers[p.Name] then
+					createMessage(p, msg)
+				else
+					table.insert(messages, {
+						username = p.Name,
+						displayname = p.DisplayName,
+						text = msg,
+						render = function() createMessage(p, msg) end
+					})
+				end
+			end)
+		end)
+	end
+end
+
+-- Handle return button (reset camera)
+returnBtn.MouseButton1Click:Connect(function()
+	if player.Character and player.Character:FindFirstChild("Humanoid") then
+		camera.CameraSubject = player.Character.Humanoid
 	end
 end)
 
--- Listen for messages
-TextChatService.MessageReceived:Connect(function(msg)
-	local props = msg.TextSource
-	if not props then return end
-	local sender = Players:GetPlayerByUserId(props.UserId)
-	if not sender then return end
+-- Initialize dropdown and chat
+refreshDropdown()
+hookChat()
 
-	local messageData = {
-		text = msg.Text,
-		displayName = sender.DisplayName,
-		username = sender.Name
-	}
-
-	table.insert(messages, messageData)
-	rebuildMessages()
+-- Auto adjust chat panel when dropdown toggles
+dropdownLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	dropdownScroll.CanvasSize = UDim2.new(0, 0, 0, dropdownLayout.AbsoluteContentSize.Y + 8)
 end)
 
--- Initialize
-refreshDropdown()
-rebuildMessages()
+-- Final cleanup
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+end)
+
+print("[✅ Chat Logger Loaded Successfully]")
