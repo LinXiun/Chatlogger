@@ -1,5 +1,5 @@
--- Chat Logger LocalScript
--- Drop this into StarterGui
+-- Chat Logger Script (Fully Updated with DM filter, notifications, triple-click teleport, and new message button)
+-- Drop this as a LocalScript into StarterGui
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -15,13 +15,13 @@ if PlayerGui:FindFirstChild("ChatLoggerGui") then
 end
 
 -- Configuration
-local GUI_SIZE = UDim2.new(0, 360, 0, 300)
+local GUI_SIZE = UDim2.new(0,360,0,300)
 local HEADER_HEIGHT = 30
 local MESSAGE_FONT_SIZE = 16
 local DM_NOTIFICATION_TIME = 3 -- seconds
-local DM_REPEAT_DELAY = 5 -- seconds before notification repeats if unread
+local DM_REPEAT_DELAY = 5 -- seconds
 
--- Store messages
+-- Messages storage
 local messages = {}
 local unreadDMs = {}
 
@@ -33,20 +33,15 @@ ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = GUI_SIZE
-MainFrame.Position = UDim2.new(0, 10, 0, 10)
+MainFrame.Position = UDim2.new(0,10,0,10)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 MainFrame.BackgroundTransparency = 0.2
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 MainFrame.ClipsDescendants = true
-MainFrame.AnchorPoint = Vector2.new(0,0)
-MainFrame.AutoButtonColor = false
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Name = "MainFrame"
-MainFrame.ZIndex = 1
-MainFrame.LayoutOrder = 1
-MainFrame.Roundness = 8
 
 -- Header
 local Header = Instance.new("Frame")
@@ -104,7 +99,24 @@ MessagesUIList.Parent = ScrollFrame
 MessagesUIList.SortOrder = Enum.SortOrder.LayoutOrder
 MessagesUIList.Padding = UDim.new(0,2)
 
--- Function to hash username to a color
+-- New messages button
+local NewMsgBtn = Instance.new("TextButton")
+NewMsgBtn.Size = UDim2.new(1,0,0,25)
+NewMsgBtn.Position = UDim2.new(0,0,1,-25)
+NewMsgBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+NewMsgBtn.TextColor3 = Color3.fromRGB(255,255,255)
+NewMsgBtn.Text = "New messages below ↓"
+NewMsgBtn.Font = Enum.Font.SourceSansBold
+NewMsgBtn.TextSize = 16
+NewMsgBtn.Visible = false
+NewMsgBtn.Parent = MainFrame
+
+NewMsgBtn.MouseButton1Click:Connect(function()
+    ScrollFrame.CanvasPosition = Vector2.new(0, ScrollFrame.AbsoluteCanvasSize.Y)
+    NewMsgBtn.Visible = false
+end)
+
+-- Helper: consistent name color
 local function NameColor(username)
     local hash = 0
     for i = 1,#username do
@@ -114,15 +126,18 @@ local function NameColor(username)
     return Color3.fromHSV(hue,0.8,0.9)
 end
 
--- Function to create message UI
+-- Click tracking for triple-click teleport
+local clickTracker = {}
+
+-- Create a message UI
 local function CreateMessageUI(msg)
     local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(1,0,0, MESSAGE_FONT_SIZE + 4)
+    Frame.Size = UDim2.new(1,0,0,MESSAGE_FONT_SIZE+4)
     Frame.BackgroundTransparency = 1
     Frame.Parent = ScrollFrame
 
     local NameLabel = Instance.new("TextLabel")
-    NameLabel.Size = UDim2.new(0, 100,1,0)
+    NameLabel.Size = UDim2.new(0,100,1,0)
     NameLabel.Position = UDim2.new(0,5,0,0)
     NameLabel.BackgroundTransparency = 1
     NameLabel.Text = msg.displayName
@@ -143,25 +158,61 @@ local function CreateMessageUI(msg)
     MsgLabel.TextXAlignment = Enum.TextXAlignment.Left
     MsgLabel.TextWrapped = true
     MsgLabel.Parent = Frame
+
+    -- Handle click for spectate/triple-click teleport
+    NameLabel.MouseButton1Click:Connect(function()
+        local now = tick()
+        clickTracker[msg.username] = clickTracker[msg.username] or {}
+        table.insert(clickTracker[msg.username], now)
+
+        -- Remove old clicks beyond 0.8s
+        for i=#clickTracker[msg.username],1,-1 do
+            if now - clickTracker[msg.username][i] > 0.8 then
+                table.remove(clickTracker[msg.username], i)
+            end
+        end
+
+        if #clickTracker[msg.username] >= 3 then
+            -- Triple-click detected: teleport
+            local targetPlayer = Players:FindFirstChild(msg.username)
+            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = targetPlayer.Character.HumanoidRootPart
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = hrp.CFrame
+                end
+            end
+            clickTracker[msg.username] = {} -- reset
+        else
+            -- Single-click: spectate
+            local camera = workspace.CurrentCamera
+            local targetPlayer = Players:FindFirstChild(msg.username)
+            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                camera.CameraSubject = targetPlayer.Character.Humanoid
+            end
+        end
+    end)
 end
 
--- Function to refresh messages based on filter
+-- Refresh messages based on filter
 local currentFilter = "All"
 local function RefreshMessages()
     for _,child in pairs(ScrollFrame:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
     end
     for _,msg in ipairs(messages) do
-        if currentFilter == "All" or 
-           currentFilter == "DMs" and msg.isDM or
+        if currentFilter == "All" or
+           (currentFilter == "DMs" and msg.isDM) or
            currentFilter == msg.username then
             CreateMessageUI(msg)
         end
     end
+    ScrollFrame.CanvasPosition = Vector2.new(0, ScrollFrame.AbsoluteCanvasSize.Y)
+    NewMsgBtn.Visible = false
 end
 
--- Function to show DM notification
+-- DM notification
 local function ShowDMNotification(msg)
+    if not msg then return end
     local Notification = Instance.new("TextLabel")
     Notification.Size = UDim2.new(0,200,0,50)
     Notification.Position = UDim2.new(0.5,-100,0.1,0)
@@ -174,7 +225,6 @@ local function ShowDMNotification(msg)
     Notification.BackgroundTransparency = 0.2
     Notification.AnchorPoint = Vector2.new(0.5,0)
 
-    -- Tween fade out
     local tweenInfo = TweenInfo.new(DM_NOTIFICATION_TIME, Enum.EasingStyle.Quad)
     local tween = TweenService:Create(Notification, tweenInfo, {BackgroundTransparency = 1, TextTransparency = 1})
     tween:Play()
@@ -183,13 +233,13 @@ local function ShowDMNotification(msg)
     end)
 end
 
--- Add to dropdown function
+-- Update dropdown
 local function UpdateDropdown()
     for _,child in pairs(DropdownFrame:GetChildren()) do
         if child:IsA("TextButton") then child:Destroy() end
     end
 
-    -- Add All
+    -- All
     local allBtn = Instance.new("TextButton")
     allBtn.Size = UDim2.new(1,0,0,25)
     allBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
@@ -203,7 +253,7 @@ local function UpdateDropdown()
         RefreshMessages()
     end)
 
-    -- Add DMs
+    -- DMs
     local dmBtn = Instance.new("TextButton")
     dmBtn.Size = UDim2.new(1,0,0,25)
     dmBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
@@ -217,7 +267,7 @@ local function UpdateDropdown()
         RefreshMessages()
     end)
 
-    -- Add players
+    -- Players
     for _,player in ipairs(Players:GetPlayers()) do
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(1,0,0,25)
@@ -234,16 +284,14 @@ local function UpdateDropdown()
     end
 end
 
--- Toggle dropdown
 DropdownBtn.MouseButton1Click:Connect(function()
     DropdownFrame.Visible = not DropdownFrame.Visible
 end)
 
--- Chat listener
+-- Handle chat messages
 local function OnMessage(msg, sender)
     local isDM = false
     if sender and msg:sub(1,1) == "/" then
-        -- Treat /w or /whisper as DM
         if string.match(msg, "^/w ") or string.match(msg, "^/whisper ") then
             isDM = true
         end
@@ -255,8 +303,16 @@ local function OnMessage(msg, sender)
         isDM = isDM
     }
     table.insert(messages, record)
+
+    -- Show message if filter matches
     if currentFilter == "All" or (currentFilter == "DMs" and isDM) or currentFilter == (sender and sender.Name) then
         CreateMessageUI(record)
+        ScrollFrame.CanvasPosition = Vector2.new(0, ScrollFrame.AbsoluteCanvasSize.Y)
+    else
+        -- Show "New messages below" button if user scrolled up
+        if ScrollFrame.CanvasPosition.Y + ScrollFrame.AbsoluteWindowSize.Y < ScrollFrame.AbsoluteCanvasSize.Y then
+            NewMsgBtn.Visible = true
+        end
     end
 
     -- DM notification
@@ -270,7 +326,7 @@ end
 if TextChatService then
     TextChatService.OnIncomingMessage = TextChatService.OnIncomingMessage or Instance.new("BindableEvent")
     TextChatService.MessageReceived:Connect(function(msg)
-        local sender = Players:FindFirstChild(msg.TextSource.Player.Name)
+        local sender = msg.TextSource and msg.TextSource.Player
         OnMessage(msg.Text, sender)
     end)
 end
@@ -283,14 +339,13 @@ end)
 -- Periodic DM reminder
 RunService.RenderStepped:Connect(function()
     for msg,_ in pairs(unreadDMs) do
-        -- Show again if still unread
-        if msg and currentFilter ~= "All" then
+        if msg then
             ShowDMNotification(msg)
         end
     end
 end)
 
--- Initial dropdown
+-- Initialize dropdown
 UpdateDropdown()
 
-print("Chat Logger loaded successfully!")
+print("Chat Logger fully loaded with DM filter, notifications, triple-click teleport, and new message button!")
