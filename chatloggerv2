@@ -1,4 +1,4 @@
--- Chat Logger Script (Fully Updated with DM filter, notifications, triple-click teleport, and new message button)
+-- Chat Logger Script (Final Version: preserves GUI, adds DM filter, notifications, triple-click teleport, and new message button)
 -- Drop this as a LocalScript into StarterGui
 
 local Players = game:GetService("Players")
@@ -18,10 +18,10 @@ end
 local GUI_SIZE = UDim2.new(0,360,0,300)
 local HEADER_HEIGHT = 30
 local MESSAGE_FONT_SIZE = 16
-local DM_NOTIFICATION_TIME = 3 -- seconds
-local DM_REPEAT_DELAY = 5 -- seconds
+local DM_NOTIFICATION_TIME = 3
+local DM_REPEAT_DELAY = 5
 
--- Messages storage
+-- Message storage
 local messages = {}
 local unreadDMs = {}
 
@@ -116,12 +116,10 @@ NewMsgBtn.MouseButton1Click:Connect(function()
     NewMsgBtn.Visible = false
 end)
 
--- Helper: consistent name color
+-- Helper: name color
 local function NameColor(username)
     local hash = 0
-    for i = 1,#username do
-        hash = hash + string.byte(username,i)
-    end
+    for i = 1,#username do hash = hash + string.byte(username,i) end
     local hue = (hash % 360)/360
     return Color3.fromHSV(hue,0.8,0.9)
 end
@@ -129,7 +127,7 @@ end
 -- Click tracking for triple-click teleport
 local clickTracker = {}
 
--- Create a message UI
+-- Create message UI
 local function CreateMessageUI(msg)
     local Frame = Instance.new("Frame")
     Frame.Size = UDim2.new(1,0,0,MESSAGE_FONT_SIZE+4)
@@ -159,35 +157,29 @@ local function CreateMessageUI(msg)
     MsgLabel.TextWrapped = true
     MsgLabel.Parent = Frame
 
-    -- Handle click for spectate/triple-click teleport
+    -- Triple-click teleport / single-click spectate
     NameLabel.MouseButton1Click:Connect(function()
         local now = tick()
         clickTracker[msg.username] = clickTracker[msg.username] or {}
         table.insert(clickTracker[msg.username], now)
-
-        -- Remove old clicks beyond 0.8s
         for i=#clickTracker[msg.username],1,-1 do
-            if now - clickTracker[msg.username][i] > 0.8 then
-                table.remove(clickTracker[msg.username], i)
-            end
+            if now - clickTracker[msg.username][i] > 0.8 then table.remove(clickTracker[msg.username], i) end
         end
 
         if #clickTracker[msg.username] >= 3 then
-            -- Triple-click detected: teleport
+            -- Triple-click teleport
             local targetPlayer = Players:FindFirstChild(msg.username)
             if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local hrp = targetPlayer.Character.HumanoidRootPart
                 if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = hrp.CFrame
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
                 end
             end
-            clickTracker[msg.username] = {} -- reset
+            clickTracker[msg.username] = {}
         else
-            -- Single-click: spectate
-            local camera = workspace.CurrentCamera
+            -- Single-click spectate
             local targetPlayer = Players:FindFirstChild(msg.username)
-            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                camera.CameraSubject = targetPlayer.Character.Humanoid
+            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Humanoid") then
+                workspace.CurrentCamera.CameraSubject = targetPlayer.Character.Humanoid
             end
         end
     end)
@@ -200,9 +192,7 @@ local function RefreshMessages()
         if child:IsA("Frame") then child:Destroy() end
     end
     for _,msg in ipairs(messages) do
-        if currentFilter == "All" or
-           (currentFilter == "DMs" and msg.isDM) or
-           currentFilter == msg.username then
+        if currentFilter == "All" or (currentFilter == "DMs" and msg.isDM) or currentFilter == msg.username then
             CreateMessageUI(msg)
         end
     end
@@ -224,13 +214,9 @@ local function ShowDMNotification(msg)
     Notification.Parent = ScreenGui
     Notification.BackgroundTransparency = 0.2
     Notification.AnchorPoint = Vector2.new(0.5,0)
-
-    local tweenInfo = TweenInfo.new(DM_NOTIFICATION_TIME, Enum.EasingStyle.Quad)
-    local tween = TweenService:Create(Notification, tweenInfo, {BackgroundTransparency = 1, TextTransparency = 1})
+    local tween = TweenService:Create(Notification, TweenInfo.new(DM_NOTIFICATION_TIME, Enum.EasingStyle.Quad), {BackgroundTransparency=1, TextTransparency=1})
     tween:Play()
-    tween.Completed:Connect(function()
-        Notification:Destroy()
-    end)
+    tween.Completed:Connect(function() Notification:Destroy() end)
 end
 
 -- Update dropdown
@@ -239,7 +225,6 @@ local function UpdateDropdown()
         if child:IsA("TextButton") then child:Destroy() end
     end
 
-    -- All
     local allBtn = Instance.new("TextButton")
     allBtn.Size = UDim2.new(1,0,0,25)
     allBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
@@ -253,7 +238,6 @@ local function UpdateDropdown()
         RefreshMessages()
     end)
 
-    -- DMs
     local dmBtn = Instance.new("TextButton")
     dmBtn.Size = UDim2.new(1,0,0,25)
     dmBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
@@ -267,7 +251,6 @@ local function UpdateDropdown()
         RefreshMessages()
     end)
 
-    -- Players
     for _,player in ipairs(Players:GetPlayers()) do
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(1,0,0,25)
@@ -288,7 +271,7 @@ DropdownBtn.MouseButton1Click:Connect(function()
     DropdownFrame.Visible = not DropdownFrame.Visible
 end)
 
--- Handle chat messages
+-- Handle messages
 local function OnMessage(msg, sender)
     local isDM = false
     if sender and msg:sub(1,1) == "/" then
@@ -296,33 +279,25 @@ local function OnMessage(msg, sender)
             isDM = true
         end
     end
-    local record = {
-        username = sender and sender.Name or "System",
-        displayName = sender and sender.DisplayName or "System",
-        text = msg,
-        isDM = isDM
-    }
+    local record = {username=sender and sender.Name or "System", displayName=sender and sender.DisplayName or "System", text=msg, isDM=isDM}
     table.insert(messages, record)
 
-    -- Show message if filter matches
-    if currentFilter == "All" or (currentFilter == "DMs" and isDM) or currentFilter == (sender and sender.Name) then
+    if currentFilter=="All" or (currentFilter=="DMs" and isDM) or currentFilter==(sender and sender.Name) then
         CreateMessageUI(record)
         ScrollFrame.CanvasPosition = Vector2.new(0, ScrollFrame.AbsoluteCanvasSize.Y)
     else
-        -- Show "New messages below" button if user scrolled up
         if ScrollFrame.CanvasPosition.Y + ScrollFrame.AbsoluteWindowSize.Y < ScrollFrame.AbsoluteCanvasSize.Y then
             NewMsgBtn.Visible = true
         end
     end
 
-    -- DM notification
     if isDM and sender ~= LocalPlayer then
-        unreadDMs[record] = true
+        unreadDMs[record]=true
         ShowDMNotification(record)
     end
 end
 
--- Modern chat
+-- Chat listeners
 if TextChatService then
     TextChatService.OnIncomingMessage = TextChatService.OnIncomingMessage or Instance.new("BindableEvent")
     TextChatService.MessageReceived:Connect(function(msg)
@@ -331,21 +306,18 @@ if TextChatService then
     end)
 end
 
--- Legacy chat fallback
 LocalPlayer.Chatted:Connect(function(msg)
     OnMessage(msg, LocalPlayer)
 end)
 
--- Periodic DM reminder
+-- Repeat DM notifications
 RunService.RenderStepped:Connect(function()
     for msg,_ in pairs(unreadDMs) do
-        if msg then
-            ShowDMNotification(msg)
-        end
+        if msg then ShowDMNotification(msg) end
     end
 end)
 
 -- Initialize dropdown
 UpdateDropdown()
 
-print("Chat Logger fully loaded with DM filter, notifications, triple-click teleport, and new message button!")
+print("Chat Logger fully loaded with preserved GUI, DM filter, notifications, triple-click teleport, and new message button!")
