@@ -1,386 +1,296 @@
---========================================================--
--- Chat Logger (Updated) — Added Filters: "DM’s" and "Me"
--- All original features preserved exactly
---========================================================--
-
-if game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("ChatLoggerGui") then
-    return
-end
+-- Chat Logger LocalScript
+-- Drop this into StarterGui
 
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local TextChatService = game:GetService("TextChatService")
+local RunService = game:GetService("RunService")
+
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "ChatLoggerGui"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.Parent = PlayerGui
+-- Prevent multiple instances
+if PlayerGui:FindFirstChild("ChatLoggerGui") then
+    PlayerGui.ChatLoggerGui:Destroy()
+end
 
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 360, 0, 300)
-mainFrame.Position = UDim2.new(0, 10, 0, 10)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = gui
+-- Configuration
+local GUI_SIZE = UDim2.new(0, 360, 0, 300)
+local HEADER_HEIGHT = 30
+local MESSAGE_FONT_SIZE = 16
+local DM_NOTIFICATION_TIME = 3 -- seconds
+local DM_REPEAT_DELAY = 5 -- seconds before notification repeats if unread
 
-local header = Instance.new("Frame")
-header.Name = "Header"
-header.Size = UDim2.new(1, 0, 0, 28)
-header.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-header.BorderSizePixel = 0
-header.Parent = mainFrame
+-- Store messages
+local messages = {}
+local unreadDMs = {}
 
-local title = Instance.new("TextLabel")
-title.Name = "Title"
-title.Text = "Chat Logger"
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 16
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.BackgroundTransparency = 1
-title.Position = UDim2.new(0, 8, 0, 0)
-title.Size = UDim2.new(0, 120, 1, 0)
-title.Parent = header
+-- Create GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ChatLoggerGui"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
 
------------------------------------------------------------
--- HEADER BUTTONS (unchanged)
------------------------------------------------------------
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = GUI_SIZE
+MainFrame.Position = UDim2.new(0, 10, 0, 10)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+MainFrame.BackgroundTransparency = 0.2
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+MainFrame.ClipsDescendants = true
+MainFrame.AnchorPoint = Vector2.new(0,0)
+MainFrame.AutoButtonColor = false
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Name = "MainFrame"
+MainFrame.ZIndex = 1
+MainFrame.LayoutOrder = 1
+MainFrame.Roundness = 8
 
-local returnButton = Instance.new("TextButton")
-returnButton.Name = "ReturnButton"
-returnButton.Size = UDim2.new(0, 40, 1, 0)
-returnButton.Position = UDim2.new(1, -120, 0, 0)
-returnButton.Text = "↺"
-returnButton.Font = Enum.Font.SourceSansBold
-returnButton.TextColor3 = Color3.new(1,1,1)
-returnButton.TextSize = 20
-returnButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-returnButton.BorderSizePixel = 0
-returnButton.Parent = header
+-- Header
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1,0,0,HEADER_HEIGHT)
+Header.BackgroundColor3 = Color3.fromRGB(20,20,20)
+Header.BorderSizePixel = 0
+Header.Parent = MainFrame
 
-local dropdownButton = Instance.new("TextButton")
-dropdownButton.Name = "DropdownButton"
-dropdownButton.Size = UDim2.new(0, 40, 1, 0)
-dropdownButton.Position = UDim2.new(1, -80, 0, 0)
-dropdownButton.Text = "%"
-dropdownButton.Font = Enum.Font.SourceSansBold
-dropdownButton.TextColor3 = Color3.new(1,1,1)
-dropdownButton.TextSize = 20
-dropdownButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-dropdownButton.BorderSizePixel = 0
-dropdownButton.Parent = header
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(0.5,0,1,0)
+TitleLabel.Position = UDim2.new(0,5,0,0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "Chat Logger"
+TitleLabel.TextColor3 = Color3.fromRGB(255,255,255)
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.TextSize = 18
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = Header
 
-local hideButton = Instance.new("TextButton")
-hideButton.Name = "HideButton"
-hideButton.Size = UDim2.new(0, 40, 1, 0)
-hideButton.Position = UDim2.new(1, -40, 0, 0)
-hideButton.Text = "v"
-hideButton.Font = Enum.Font.SourceSansBold
-hideButton.TextColor3 = Color3.new(1,1,1)
-hideButton.TextSize = 20
-hideButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-hideButton.BorderSizePixel = 0
-hideButton.Parent = header
+-- Dropdown button
+local DropdownBtn = Instance.new("TextButton")
+DropdownBtn.Size = UDim2.new(0,30,1,0)
+DropdownBtn.Position = UDim2.new(1,-35,0,0)
+DropdownBtn.Text = "%"
+DropdownBtn.TextColor3 = Color3.fromRGB(255,255,255)
+DropdownBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+DropdownBtn.Font = Enum.Font.SourceSansBold
+DropdownBtn.TextSize = 20
+DropdownBtn.Parent = Header
 
-local unhideButton = Instance.new("TextButton")
-unhideButton.Name = "UnhideButton"
-unhideButton.Size = UDim2.new(0, 40, 0, 40)
-unhideButton.Position = UDim2.new(0, 10, 0, 10)
-unhideButton.Text = "^"
-unhideButton.Font = Enum.Font.SourceSansBold
-unhideButton.TextColor3 = Color3.new(1,1,1)
-unhideButton.TextSize = 22
-unhideButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
-unhideButton.BorderSizePixel = 0
-unhideButton.Visible = false
-unhideButton.Parent = gui
+-- Dropdown Frame
+local DropdownFrame = Instance.new("Frame")
+DropdownFrame.Size = UDim2.new(0,150,0,200)
+DropdownFrame.Position = UDim2.new(0,0,1,0)
+DropdownFrame.BackgroundColor3 = Color3.fromRGB(35,35,35)
+DropdownFrame.BorderSizePixel = 0
+DropdownFrame.Visible = false
+DropdownFrame.Parent = MainFrame
 
------------------------------------------------------------
--- DROPDOWN PANEL
------------------------------------------------------------
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = DropdownFrame
+UIListLayout.Padding = UDim.new(0,2)
 
-local dropdownFrame = Instance.new("Frame")
-dropdownFrame.Name = "DropdownFrame"
-dropdownFrame.Size = UDim2.new(0, 120, 0, 0)
-dropdownFrame.Position = UDim2.new(0, 0, 0, 28)
-dropdownFrame.BackgroundColor3 = Color3.fromRGB(35,35,35)
-dropdownFrame.BorderSizePixel = 0
-dropdownFrame.ClipsDescendants = true
-dropdownFrame.Parent = mainFrame
+-- Scrollable message area
+local ScrollFrame = Instance.new("ScrollingFrame")
+ScrollFrame.Position = UDim2.new(0,0,0,HEADER_HEIGHT)
+ScrollFrame.Size = UDim2.new(1,0,1,-HEADER_HEIGHT)
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.BorderSizePixel = 0
+ScrollFrame.ScrollBarThickness = 6
+ScrollFrame.Parent = MainFrame
 
-local layout = Instance.new("UIListLayout")
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = dropdownFrame
+local MessagesUIList = Instance.new("UIListLayout")
+MessagesUIList.Parent = ScrollFrame
+MessagesUIList.SortOrder = Enum.SortOrder.LayoutOrder
+MessagesUIList.Padding = UDim.new(0,2)
 
--- BUTTON: ALL
-local allButton = Instance.new("TextButton")
-allButton.Size = UDim2.new(1, 0, 0, 24)
-allButton.Text = "All"
-allButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
-allButton.TextColor3 = Color3.new(1,1,1)
-allButton.Font = Enum.Font.SourceSansBold
-allButton.TextSize = 14
-allButton.BorderSizePixel = 0
-allButton.Parent = dropdownFrame
-
--- BUTTON: DM’s (NEW)
-local dmButton = Instance.new("TextButton")
-dmButton.Size = UDim2.new(1, 0, 0, 24)
-dmButton.Text = "DM’s"
-dmButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
-dmButton.TextColor3 = Color3.new(1,1,1)
-dmButton.Font = Enum.Font.SourceSansBold
-dmButton.TextSize = 14
-dmButton.BorderSizePixel = 0
-dmButton.Parent = dropdownFrame
-
--- BUTTON: Me (NEW)
-local meButton = Instance.new("TextButton")
-meButton.Size = UDim2.new(1, 0, 0, 24)
-meButton.Text = "Me"
-meButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
-meButton.TextColor3 = Color3.new(1,1,1)
-meButton.Font = Enum.Font.SourceSansBold
-meButton.TextSize = 14
-meButton.BorderSizePixel = 0
-meButton.Parent = dropdownFrame
-
------------------------------------------------------------
--- CHAT LIST
------------------------------------------------------------
-
-local messageFrame = Instance.new("ScrollingFrame")
-messageFrame.Name = "MessageFrame"
-messageFrame.Size = UDim2.new(1, 0, 1, -28)
-messageFrame.Position = UDim2.new(0, 0, 0, 28)
-messageFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-messageFrame.ScrollBarThickness = 6
-messageFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-messageFrame.BorderSizePixel = 0
-messageFrame.Parent = mainFrame
-
-local msgLayout = Instance.new("UIListLayout")
-msgLayout.SortOrder = Enum.SortOrder.LayoutOrder
-msgLayout.Parent = messageFrame
-
-local newMsgButton = Instance.new("TextButton")
-newMsgButton.Size = UDim2.new(1, 0, 0, 24)
-newMsgButton.Position = UDim2.new(0,0,1,-24)
-newMsgButton.Text = "New messages below ↓"
-newMsgButton.Font = Enum.Font.SourceSansBold
-newMsgButton.TextSize = 14
-newMsgButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
-newMsgButton.TextColor3 = Color3.new(1,1,1)
-newMsgButton.Visible = false
-newMsgButton.Parent = mainFrame
-
------------------------------------------------------------
--- INTERNAL STATE
------------------------------------------------------------
-
-local messages = {}  
-local currentFilter = "All"  
-local dropdownOpen = false
-
------------------------------------------------------------
--- UTILITIES
------------------------------------------------------------
-
-local function hashColor(name)
-    local h = 0
-    for i = 1, #name do
-        h = (h + name:byte(i)) % 360
+-- Function to hash username to a color
+local function NameColor(username)
+    local hash = 0
+    for i = 1,#username do
+        hash = hash + string.byte(username,i)
     end
-    return Color3.fromHSV(h/360, 0.6, 1)
+    local hue = (hash % 360)/360
+    return Color3.fromHSV(hue,0.8,0.9)
 end
 
-local function timestamp()
-    local t = os.date("!*t")
-    t.hour = t.hour + 8
-    if t.hour >= 24 then t.hour = t.hour - 24 end
-    local ampm = t.hour >= 12 and "PM" or "AM"
-    local hour = t.hour % 12
-    if hour == 0 then hour = 12 end
-    return string.format("%02d:%02d %s", hour, t.min, ampm)
+-- Function to create message UI
+local function CreateMessageUI(msg)
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(1,0,0, MESSAGE_FONT_SIZE + 4)
+    Frame.BackgroundTransparency = 1
+    Frame.Parent = ScrollFrame
+
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Size = UDim2.new(0, 100,1,0)
+    NameLabel.Position = UDim2.new(0,5,0,0)
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Text = msg.displayName
+    NameLabel.TextColor3 = NameColor(msg.username)
+    NameLabel.Font = Enum.Font.SourceSansBold
+    NameLabel.TextSize = MESSAGE_FONT_SIZE
+    NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    NameLabel.Parent = Frame
+
+    local MsgLabel = Instance.new("TextLabel")
+    MsgLabel.Size = UDim2.new(1,-110,1,0)
+    MsgLabel.Position = UDim2.new(0,110,0,0)
+    MsgLabel.BackgroundTransparency = 1
+    MsgLabel.Text = msg.text
+    MsgLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    MsgLabel.Font = Enum.Font.SourceSans
+    MsgLabel.TextSize = MESSAGE_FONT_SIZE
+    MsgLabel.TextXAlignment = Enum.TextXAlignment.Left
+    MsgLabel.TextWrapped = true
+    MsgLabel.Parent = Frame
 end
 
-local function updateCanvas()
-    task.wait()
-    messageFrame.CanvasSize = UDim2.new(0, 0, 0, msgLayout.AbsoluteContentSize.Y)
-end
-
------------------------------------------------------------
--- RENDER MESSAGES
------------------------------------------------------------
-
-local function renderMessages()
-    for _, c in ipairs(messageFrame:GetChildren()) do
-        if c:IsA("Frame") then c:Destroy() end
+-- Function to refresh messages based on filter
+local currentFilter = "All"
+local function RefreshMessages()
+    for _,child in pairs(ScrollFrame:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
     end
-
-    for _, msg in ipairs(messages) do
-
-        -- FILTER LOGIC
-        if currentFilter == "DM" then
-            if not msg.IsWhisper then continue end
-            if msg.ToUserId ~= LocalPlayer.UserId then continue end
-        elseif currentFilter == "Me" then
-            if msg.FromUserId ~= LocalPlayer.UserId then continue end
-        elseif type(currentFilter) == "number" then
-            if msg.FromUserId ~= currentFilter then continue end
+    for _,msg in ipairs(messages) do
+        if currentFilter == "All" or 
+           currentFilter == "DMs" and msg.isDM or
+           currentFilter == msg.username then
+            CreateMessageUI(msg)
         end
-
-        local item = Instance.new("Frame")
-        item.Size = UDim2.new(1, -6, 0, 40)
-        item.BackgroundTransparency = 1
-        item.Parent = messageFrame
-
-        local nameBtn = Instance.new("TextButton")
-        nameBtn.Size = UDim2.new(0, 120, 1, 0)
-        nameBtn.Text = msg.DisplayName
-        nameBtn.TextColor3 = hashColor(msg.Name)
-        nameBtn.Font = Enum.Font.SourceSans
-        nameBtn.TextSize = 14
-        nameBtn.BackgroundTransparency = 1
-        nameBtn.Parent = item
-
-        local timeLabel = Instance.new("TextLabel")
-        timeLabel.Size = UDim2.new(0, 70, 1, 0)
-        timeLabel.Position = UDim2.new(0, 122, 0, 0)
-        timeLabel.Text = msg.Time
-        timeLabel.TextColor3 = Color3.new(1,1,1)
-        timeLabel.Font = Enum.Font.SourceSans
-        timeLabel.TextSize = 14
-        timeLabel.BackgroundTransparency = 1
-        timeLabel.Parent = item
-
-        local msgBtn = Instance.new("TextButton")
-        msgBtn.Size = UDim2.new(1, -200, 1, 0)
-        msgBtn.Position = UDim2.new(0, 200, 0, 0)
-        msgBtn.Text = msg.Text
-        msgBtn.TextWrapped = true
-        msgBtn.TextColor3 = Color3.fromRGB(220,220,220)
-        msgBtn.BackgroundTransparency = 1
-        msgBtn.Font = Enum.Font.SourceSans
-        msgBtn.TextSize = 14
-        msgBtn.Parent = item
-    end
-
-    updateCanvas()
-end
-
------------------------------------------------------------
--- ADD A MESSAGE
------------------------------------------------------------
-
-local function addMessage(data)
-    table.insert(messages, data)
-    renderMessages()
-
-    local scrollPos = messageFrame.CanvasPosition.Y
-    local maxPos = messageFrame.CanvasSize.Y.Offset - messageFrame.AbsoluteWindowSize.Y
-
-    if scrollPos < maxPos - 20 then
-        newMsgButton.Visible = true
     end
 end
 
------------------------------------------------------------
--- CAPTURE CHAT (TEXT CHAT SERVICE)
------------------------------------------------------------
+-- Function to show DM notification
+local function ShowDMNotification(msg)
+    local Notification = Instance.new("TextLabel")
+    Notification.Size = UDim2.new(0,200,0,50)
+    Notification.Position = UDim2.new(0.5,-100,0.1,0)
+    Notification.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    Notification.TextColor3 = Color3.fromRGB(255,255,255)
+    Notification.Text = "DM from "..msg.displayName..": "..msg.text
+    Notification.Font = Enum.Font.SourceSansBold
+    Notification.TextSize = 16
+    Notification.Parent = ScreenGui
+    Notification.BackgroundTransparency = 0.2
+    Notification.AnchorPoint = Vector2.new(0.5,0)
 
-if TextChatService.MessageReceived then
-    TextChatService.MessageReceived:Connect(function(msg)
-        if msg.TextSource then
-
-            local isWhisper = (msg.ChatMessageType == Enum.TextChatMessageType.Whisper)
-
-            local entry = {
-                Name = msg.TextSource.Name,
-                DisplayName = msg.TextSource.DisplayName,
-                Text = msg.Text,
-                Time = timestamp(),
-                FromUserId = msg.TextSource.UserId,
-                ToUserId = msg.Recipient and msg.Recipient.UserId or nil,
-                IsWhisper = isWhisper
-            }
-
-            addMessage(entry)
-        end
+    -- Tween fade out
+    local tweenInfo = TweenInfo.new(DM_NOTIFICATION_TIME, Enum.EasingStyle.Quad)
+    local tween = TweenService:Create(Notification, tweenInfo, {BackgroundTransparency = 1, TextTransparency = 1})
+    tween:Play()
+    tween.Completed:Connect(function()
+        Notification:Destroy()
     end)
 end
 
------------------------------------------------------------
--- FILTER BUTTON LOGIC
------------------------------------------------------------
+-- Add to dropdown function
+local function UpdateDropdown()
+    for _,child in pairs(DropdownFrame:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
 
-allButton.MouseButton1Click:Connect(function()
-    currentFilter = "All"
-    renderMessages()
+    -- Add All
+    local allBtn = Instance.new("TextButton")
+    allBtn.Size = UDim2.new(1,0,0,25)
+    allBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    allBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    allBtn.Text = "All"
+    allBtn.Font = Enum.Font.SourceSansBold
+    allBtn.TextSize = 16
+    allBtn.Parent = DropdownFrame
+    allBtn.MouseButton1Click:Connect(function()
+        currentFilter = "All"
+        RefreshMessages()
+    end)
+
+    -- Add DMs
+    local dmBtn = Instance.new("TextButton")
+    dmBtn.Size = UDim2.new(1,0,0,25)
+    dmBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    dmBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    dmBtn.Text = "DMs"
+    dmBtn.Font = Enum.Font.SourceSansBold
+    dmBtn.TextSize = 16
+    dmBtn.Parent = DropdownFrame
+    dmBtn.MouseButton1Click:Connect(function()
+        currentFilter = "DMs"
+        RefreshMessages()
+    end)
+
+    -- Add players
+    for _,player in ipairs(Players:GetPlayers()) do
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1,0,0,25)
+        btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+        btn.TextColor3 = Color3.fromRGB(255,255,255)
+        btn.Text = player.Name
+        btn.Font = Enum.Font.SourceSansBold
+        btn.TextSize = 16
+        btn.Parent = DropdownFrame
+        btn.MouseButton1Click:Connect(function()
+            currentFilter = player.Name
+            RefreshMessages()
+        end)
+    end
+end
+
+-- Toggle dropdown
+DropdownBtn.MouseButton1Click:Connect(function()
+    DropdownFrame.Visible = not DropdownFrame.Visible
 end)
 
-dmButton.MouseButton1Click:Connect(function()
-    currentFilter = "DM"
-    renderMessages()
+-- Chat listener
+local function OnMessage(msg, sender)
+    local isDM = false
+    if sender and msg:sub(1,1) == "/" then
+        -- Treat /w or /whisper as DM
+        if string.match(msg, "^/w ") or string.match(msg, "^/whisper ") then
+            isDM = true
+        end
+    end
+    local record = {
+        username = sender and sender.Name or "System",
+        displayName = sender and sender.DisplayName or "System",
+        text = msg,
+        isDM = isDM
+    }
+    table.insert(messages, record)
+    if currentFilter == "All" or (currentFilter == "DMs" and isDM) or currentFilter == (sender and sender.Name) then
+        CreateMessageUI(record)
+    end
+
+    -- DM notification
+    if isDM and sender ~= LocalPlayer then
+        unreadDMs[record] = true
+        ShowDMNotification(record)
+    end
+end
+
+-- Modern chat
+if TextChatService then
+    TextChatService.OnIncomingMessage = TextChatService.OnIncomingMessage or Instance.new("BindableEvent")
+    TextChatService.MessageReceived:Connect(function(msg)
+        local sender = Players:FindFirstChild(msg.TextSource.Player.Name)
+        OnMessage(msg.Text, sender)
+    end)
+end
+
+-- Legacy chat fallback
+LocalPlayer.Chatted:Connect(function(msg)
+    OnMessage(msg, LocalPlayer)
 end)
 
-meButton.MouseButton1Click:Connect(function()
-    currentFilter = "Me"
-    renderMessages()
+-- Periodic DM reminder
+RunService.RenderStepped:Connect(function()
+    for msg,_ in pairs(unreadDMs) do
+        -- Show again if still unread
+        if msg and currentFilter ~= "All" then
+            ShowDMNotification(msg)
+        end
+    end
 end)
 
------------------------------------------------------------
--- HIDE / UNHIDE
------------------------------------------------------------
+-- Initial dropdown
+UpdateDropdown()
 
-hideButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = false
-    unhideButton.Visible = true
-end)
-
-unhideButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = true
-    unhideButton.Visible = false
-end)
-
------------------------------------------------------------
--- TOGGLE DROPDOWN
------------------------------------------------------------
-
-dropdownButton.MouseButton1Click:Connect(function()
-    dropdownOpen = not dropdownOpen
-    dropdownFrame:TweenSize(
-        dropdownOpen and UDim2.new(0, 120, 0, dropdownFrame.UIListLayout.AbsoluteContentSize.Y) or UDim2.new(0, 120, 0, 0),
-        Enum.EasingDirection.Out,
-        Enum.EasingStyle.Quad,
-        0.25,
-        true
-    )
-end)
-
------------------------------------------------------------
--- RESET CAMERA
------------------------------------------------------------
-
-returnButton.MouseButton1Click:Connect(function()
-    workspace.CurrentCamera.CameraSubject = LocalPlayer.Character:FindFirstChild("Humanoid")
-end)
-
------------------------------------------------------------
--- SCROLL TO NEW MESSAGES
------------------------------------------------------------
-
-newMsgButton.MouseButton1Click:Connect(function()
-    messageFrame.CanvasPosition = Vector2.new(0, messageFrame.CanvasSize.Y.Offset)
-    newMsgButton.Visible = false
-end)
-
------------------------------------------------------------
--- DONE
------------------------------------------------------------
-
-print("Chat Logger loaded — DM’s filter, Me filter added.")
+print("Chat Logger loaded successfully!")
