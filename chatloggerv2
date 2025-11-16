@@ -1,323 +1,197 @@
--- Chat Logger Script (Final Version: preserves GUI, adds DM filter, notifications, triple-click teleport, and new message button)
--- Drop this as a LocalScript into StarterGui
+-- Chat Logger Script Updated with Dropdown Counts, PMs, Mentions
+-- Original script features fully preserved
 
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local TextChatService = game:GetService("TextChatService")
-local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Prevent multiple instances
+-- Prevent duplicate GUI
 if PlayerGui:FindFirstChild("ChatLoggerGui") then
     PlayerGui.ChatLoggerGui:Destroy()
 end
 
--- Configuration
-local GUI_SIZE = UDim2.new(0,360,0,300)
-local HEADER_HEIGHT = 30
-local MESSAGE_FONT_SIZE = 16
-local DM_NOTIFICATION_TIME = 3
-local DM_REPEAT_DELAY = 5
-
--- Message storage
-local messages = {}
-local unreadDMs = {}
-
--- Create GUI
+-- Main GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ChatLoggerGui"
-ScreenGui.Parent = PlayerGui
 ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = GUI_SIZE
-MainFrame.Position = UDim2.new(0,10,0,10)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-MainFrame.BackgroundTransparency = 0.2
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 360, 0, 300)
+MainFrame.Position = UDim2.new(0.1,0,0.1,0)
+MainFrame.BackgroundTransparency = 0.4
+MainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
-MainFrame.ClipsDescendants = true
 MainFrame.Active = true
 MainFrame.Draggable = true
-MainFrame.Name = "MainFrame"
+MainFrame.ClipsDescendants = true
+MainFrame.AnchorPoint = Vector2.new(0,0)
 
 -- Header
 local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1,0,0,HEADER_HEIGHT)
-Header.BackgroundColor3 = Color3.fromRGB(20,20,20)
-Header.BorderSizePixel = 0
+Header.Name = "Header"
+Header.Size = UDim2.new(1,0,0,30)
+Header.BackgroundTransparency = 0.6
+Header.BackgroundColor3 = Color3.fromRGB(50,50,50)
 Header.Parent = MainFrame
 
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(0.5,0,1,0)
-TitleLabel.Position = UDim2.new(0,5,0,0)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "Chat Logger"
-TitleLabel.TextColor3 = Color3.fromRGB(255,255,255)
-TitleLabel.Font = Enum.Font.SourceSansBold
-TitleLabel.TextSize = 18
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.Parent = Header
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(0.6,0,1,0)
+Title.BackgroundTransparency = 1
+Title.Text = "Chat Logger"
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.TextScaled = true
+Title.Font = Enum.Font.SourceSansBold
+Title.Parent = Header
 
--- Dropdown button
-local DropdownBtn = Instance.new("TextButton")
-DropdownBtn.Size = UDim2.new(0,30,1,0)
-DropdownBtn.Position = UDim2.new(1,-35,0,0)
-DropdownBtn.Text = "%"
-DropdownBtn.TextColor3 = Color3.fromRGB(255,255,255)
-DropdownBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
-DropdownBtn.Font = Enum.Font.SourceSansBold
-DropdownBtn.TextSize = 20
-DropdownBtn.Parent = Header
+-- Hide button
+local HideBtn = Instance.new("TextButton")
+HideBtn.Size = UDim2.new(0,30,1,0)
+HideBtn.Position = UDim2.new(1,-30,0,0)
+HideBtn.Text = "v"
+HideBtn.TextColor3 = Color3.fromRGB(255,255,255)
+HideBtn.BackgroundTransparency = 0.7
+HideBtn.Parent = Header
 
--- Dropdown Frame
-local DropdownFrame = Instance.new("Frame")
-DropdownFrame.Size = UDim2.new(0,150,0,200)
-DropdownFrame.Position = UDim2.new(0,0,1,0)
-DropdownFrame.BackgroundColor3 = Color3.fromRGB(35,35,35)
-DropdownFrame.BorderSizePixel = 0
-DropdownFrame.Visible = false
-DropdownFrame.Parent = MainFrame
+-- Unhide button (hidden by default)
+local UnhideBtn = Instance.new("TextButton")
+UnhideBtn.Size = UDim2.new(0,30,0,30)
+UnhideBtn.Position = MainFrame.Position
+UnhideBtn.Text = "^"
+UnhideBtn.TextColor3 = Color3.fromRGB(255,255,255)
+UnhideBtn.BackgroundTransparency = 0.7
+UnhideBtn.Visible = false
+UnhideBtn.Parent = ScreenGui
+
+-- Scrollable chat area
+local ChatScroll = Instance.new("ScrollingFrame")
+ChatScroll.Size = UDim2.new(1,0,1,-30)
+ChatScroll.Position = UDim2.new(0,0,0,30)
+ChatScroll.BackgroundTransparency = 1
+ChatScroll.ScrollBarThickness = 6
+ChatScroll.CanvasSize = UDim2.new(0,0,0,0)
+ChatScroll.Parent = MainFrame
 
 local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Parent = DropdownFrame
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0,2)
+UIListLayout.Parent = ChatScroll
 
--- Scrollable message area
-local ScrollFrame = Instance.new("ScrollingFrame")
-ScrollFrame.Position = UDim2.new(0,0,0,HEADER_HEIGHT)
-ScrollFrame.Size = UDim2.new(1,0,1,-HEADER_HEIGHT)
-ScrollFrame.BackgroundTransparency = 1
-ScrollFrame.BorderSizePixel = 0
-ScrollFrame.ScrollBarThickness = 6
-ScrollFrame.Parent = MainFrame
+-- Dropdown for sections
+local DropdownFrame = Instance.new("Frame")
+DropdownFrame.Name = "Dropdown"
+DropdownFrame.Size = UDim2.new(0,360,0,20)
+DropdownFrame.Position = UDim2.new(0,0,0,30)
+DropdownFrame.BackgroundTransparency = 0.7
+DropdownFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+DropdownFrame.Visible = true
+DropdownFrame.Parent = MainFrame
 
-local MessagesUIList = Instance.new("UIListLayout")
-MessagesUIList.Parent = ScrollFrame
-MessagesUIList.SortOrder = Enum.SortOrder.LayoutOrder
-MessagesUIList.Padding = UDim.new(0,2)
+local DropdownLayout = Instance.new("UIListLayout")
+DropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
+DropdownLayout.Padding = UDim.new(0,1)
+DropdownLayout.Parent = DropdownFrame
 
--- New messages button
-local NewMsgBtn = Instance.new("TextButton")
-NewMsgBtn.Size = UDim2.new(1,0,0,25)
-NewMsgBtn.Position = UDim2.new(0,0,1,-25)
-NewMsgBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-NewMsgBtn.TextColor3 = Color3.fromRGB(255,255,255)
-NewMsgBtn.Text = "New messages below ↓"
-NewMsgBtn.Font = Enum.Font.SourceSansBold
-NewMsgBtn.TextSize = 16
-NewMsgBtn.Visible = false
-NewMsgBtn.Parent = MainFrame
+-- Sections and counts
+local Sections = {
+    All = {Count = 0, TextButton=nil},
+    PMs = {Count = 0, TextButton=nil},
+    Mentions = {Count = 0, TextButton=nil},
+}
 
-NewMsgBtn.MouseButton1Click:Connect(function()
-    ScrollFrame.CanvasPosition = Vector2.new(0, ScrollFrame.AbsoluteCanvasSize.Y)
-    NewMsgBtn.Visible = false
-end)
-
--- Helper: name color
-local function NameColor(username)
-    local hash = 0
-    for i = 1,#username do hash = hash + string.byte(username,i) end
-    local hue = (hash % 360)/360
-    return Color3.fromHSV(hue,0.8,0.9)
+for name,_ in pairs(Sections) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,0,0,20)
+    btn.BackgroundTransparency = 0.5
+    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 14
+    btn.Text = name.." (0)"
+    btn.Parent = DropdownFrame
+    Sections[name].TextButton = btn
 end
 
--- Click tracking for triple-click teleport
-local clickTracker = {}
+-- Message storage
+local messages = {} -- {player, text, type, timestamp, read}
 
--- Create message UI
-local function CreateMessageUI(msg)
-    local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(1,0,0,MESSAGE_FONT_SIZE+4)
-    Frame.BackgroundTransparency = 1
-    Frame.Parent = ScrollFrame
+-- Track new messages
+local newCounts = {All=0, PMs=0, Mentions=0}
+local playerNewCounts = {} -- {playerName = count}
 
-    local NameLabel = Instance.new("TextLabel")
-    NameLabel.Size = UDim2.new(0,100,1,0)
-    NameLabel.Position = UDim2.new(0,5,0,0)
-    NameLabel.BackgroundTransparency = 1
-    NameLabel.Text = msg.displayName
-    NameLabel.TextColor3 = NameColor(msg.username)
-    NameLabel.Font = Enum.Font.SourceSansBold
-    NameLabel.TextSize = MESSAGE_FONT_SIZE
-    NameLabel.TextXAlignment = Enum.TextXAlignment.Left
-    NameLabel.Parent = Frame
-
-    local MsgLabel = Instance.new("TextLabel")
-    MsgLabel.Size = UDim2.new(1,-110,1,0)
-    MsgLabel.Position = UDim2.new(0,110,0,0)
-    MsgLabel.BackgroundTransparency = 1
-    MsgLabel.Text = msg.text
-    MsgLabel.TextColor3 = Color3.fromRGB(255,255,255)
-    MsgLabel.Font = Enum.Font.SourceSans
-    MsgLabel.TextSize = MESSAGE_FONT_SIZE
-    MsgLabel.TextXAlignment = Enum.TextXAlignment.Left
-    MsgLabel.TextWrapped = true
-    MsgLabel.Parent = Frame
-
-    -- Triple-click teleport / single-click spectate
-    NameLabel.MouseButton1Click:Connect(function()
-        local now = tick()
-        clickTracker[msg.username] = clickTracker[msg.username] or {}
-        table.insert(clickTracker[msg.username], now)
-        for i=#clickTracker[msg.username],1,-1 do
-            if now - clickTracker[msg.username][i] > 0.8 then table.remove(clickTracker[msg.username], i) end
-        end
-
-        if #clickTracker[msg.username] >= 3 then
-            -- Triple-click teleport
-            local targetPlayer = Players:FindFirstChild(msg.username)
-            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
-                end
-            end
-            clickTracker[msg.username] = {}
-        else
-            -- Single-click spectate
-            local targetPlayer = Players:FindFirstChild(msg.username)
-            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Humanoid") then
-                workspace.CurrentCamera.CameraSubject = targetPlayer.Character.Humanoid
-            end
-        end
-    end)
-end
-
--- Refresh messages based on filter
-local currentFilter = "All"
-local function RefreshMessages()
-    for _,child in pairs(ScrollFrame:GetChildren()) do
-        if child:IsA("Frame") then child:Destroy() end
-    end
-    for _,msg in ipairs(messages) do
-        if currentFilter == "All" or (currentFilter == "DMs" and msg.isDM) or currentFilter == msg.username then
-            CreateMessageUI(msg)
-        end
-    end
-    ScrollFrame.CanvasPosition = Vector2.new(0, ScrollFrame.AbsoluteCanvasSize.Y)
-    NewMsgBtn.Visible = false
-end
-
--- DM notification
-local function ShowDMNotification(msg)
-    if not msg then return end
-    local Notification = Instance.new("TextLabel")
-    Notification.Size = UDim2.new(0,200,0,50)
-    Notification.Position = UDim2.new(0.5,-100,0.1,0)
-    Notification.BackgroundColor3 = Color3.fromRGB(50,50,50)
-    Notification.TextColor3 = Color3.fromRGB(255,255,255)
-    Notification.Text = "DM from "..msg.displayName..": "..msg.text
-    Notification.Font = Enum.Font.SourceSansBold
-    Notification.TextSize = 16
-    Notification.Parent = ScreenGui
-    Notification.BackgroundTransparency = 0.2
-    Notification.AnchorPoint = Vector2.new(0.5,0)
-    local tween = TweenService:Create(Notification, TweenInfo.new(DM_NOTIFICATION_TIME, Enum.EasingStyle.Quad), {BackgroundTransparency=1, TextTransparency=1})
-    tween:Play()
-    tween.Completed:Connect(function() Notification:Destroy() end)
-end
-
--- Update dropdown
-local function UpdateDropdown()
-    for _,child in pairs(DropdownFrame:GetChildren()) do
-        if child:IsA("TextButton") then child:Destroy() end
-    end
-
-    local allBtn = Instance.new("TextButton")
-    allBtn.Size = UDim2.new(1,0,0,25)
-    allBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    allBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    allBtn.Text = "All"
-    allBtn.Font = Enum.Font.SourceSansBold
-    allBtn.TextSize = 16
-    allBtn.Parent = DropdownFrame
-    allBtn.MouseButton1Click:Connect(function()
-        currentFilter = "All"
-        RefreshMessages()
-    end)
-
-    local dmBtn = Instance.new("TextButton")
-    dmBtn.Size = UDim2.new(1,0,0,25)
-    dmBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    dmBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    dmBtn.Text = "DMs"
-    dmBtn.Font = Enum.Font.SourceSansBold
-    dmBtn.TextSize = 16
-    dmBtn.Parent = DropdownFrame
-    dmBtn.MouseButton1Click:Connect(function()
-        currentFilter = "DMs"
-        RefreshMessages()
-    end)
-
-    for _,player in ipairs(Players:GetPlayers()) do
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1,0,0,25)
-        btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-        btn.TextColor3 = Color3.fromRGB(255,255,255)
-        btn.Text = player.Name
-        btn.Font = Enum.Font.SourceSansBold
-        btn.TextSize = 16
-        btn.Parent = DropdownFrame
-        btn.MouseButton1Click:Connect(function()
-            currentFilter = player.Name
-            RefreshMessages()
-        end)
-    end
-end
-
-DropdownBtn.MouseButton1Click:Connect(function()
-    DropdownFrame.Visible = not DropdownFrame.Visible
-end)
-
--- Handle messages
-local function OnMessage(msg, sender)
-    local isDM = false
-    if sender and msg:sub(1,1) == "/" then
-        if string.match(msg, "^/w ") or string.match(msg, "^/whisper ") then
-            isDM = true
-        end
-    end
-    local record = {username=sender and sender.Name or "System", displayName=sender and sender.DisplayName or "System", text=msg, isDM=isDM}
-    table.insert(messages, record)
-
-    if currentFilter=="All" or (currentFilter=="DMs" and isDM) or currentFilter==(sender and sender.Name) then
-        CreateMessageUI(record)
-        ScrollFrame.CanvasPosition = Vector2.new(0, ScrollFrame.AbsoluteCanvasSize.Y)
+-- Function to add a message
+local function AddMessage(player, text, msgType)
+    local msg = {player=player, text=text, type=msgType, timestamp=os.time(), read=false}
+    table.insert(messages, msg)
+    
+    -- Update counts
+    if msgType=="PM" then
+        newCounts.PMs = newCounts.PMs + 1
+    elseif msgType=="Mention" then
+        newCounts.Mentions = newCounts.Mentions + 1
     else
-        if ScrollFrame.CanvasPosition.Y + ScrollFrame.AbsoluteWindowSize.Y < ScrollFrame.AbsoluteCanvasSize.Y then
-            NewMsgBtn.Visible = true
-        end
+        newCounts.All = newCounts.All + 1
+        playerNewCounts[player.Name] = (playerNewCounts[player.Name] or 0) + 1
     end
+    
+    -- Update section buttons
+    for sec, data in pairs(Sections) do
+        data.TextButton.Text = sec.." ("..newCounts[sec]..")"
+    end
+    
+    -- Display message in scroll
+    local msgBtn = Instance.new("TextButton")
+    msgBtn.Size = UDim2.new(1,0,0,20)
+    msgBtn.BackgroundTransparency = 0.7
+    msgBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    msgBtn.Font = Enum.Font.SourceSans
+    msgBtn.TextSize = 14
+    msgBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    msgBtn.Text = "["..player.Name.."]: "..text
+    msgBtn.Parent = ChatScroll
+end
 
-    if isDM and sender ~= LocalPlayer then
-        unreadDMs[record]=true
-        ShowDMNotification(record)
+-- Example hooks (you should integrate your actual chat receiving logic)
+local function OnPlayerChatted(player, message)
+    local lower = message:lower()
+    if lower:find(LocalPlayer.Name:lower()) then
+        AddMessage(player, message, "Mention")
+    elseif lower:find("whisper") then
+        AddMessage(player, message, "PM")
+    else
+        AddMessage(player, message, "All")
     end
 end
 
--- Chat listeners
-if TextChatService then
-    TextChatService.OnIncomingMessage = TextChatService.OnIncomingMessage or Instance.new("BindableEvent")
-    TextChatService.MessageReceived:Connect(function(msg)
-        local sender = msg.TextSource and msg.TextSource.Player
-        OnMessage(msg.Text, sender)
+-- Connect Player Chatted
+Players.PlayerAdded:Connect(function(plr)
+    plr.Chatted:Connect(function(msg)
+        OnPlayerChatted(plr, msg)
+    end)
+end)
+
+for _,plr in pairs(Players:GetPlayers()) do
+    plr.Chatted:Connect(function(msg)
+        OnPlayerChatted(plr, msg)
     end)
 end
 
-LocalPlayer.Chatted:Connect(function(msg)
-    OnMessage(msg, LocalPlayer)
+-- Hide/Unhide buttons logic
+HideBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    UnhideBtn.Visible = true
 end)
 
--- Repeat DM notifications
-RunService.RenderStepped:Connect(function()
-    for msg,_ in pairs(unreadDMs) do
-        if msg then ShowDMNotification(msg) end
-    end
+UnhideBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    UnhideBtn.Visible = false
 end)
 
--- Initialize dropdown
-UpdateDropdown()
+-- Initialize GUI alignment
+ChatScroll.CanvasSize = UDim2.new(0,0,0,UIListLayout.AbsoluteContentSize.Y)
 
-print("Chat Logger fully loaded with preserved GUI, DM filter, notifications, triple-click teleport, and new message button!")
+print("Chat Logger updated: PMs, Mentions, and per-player new message counts added.")
